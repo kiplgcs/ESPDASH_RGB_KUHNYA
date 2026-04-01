@@ -2,7 +2,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiUdp.h>
-#include <Wire.h> // I2C и ADS1115 подключаем здесь, чтобы не дублировать в PH_CL2.h
 #include <esp_system.h>
 #include "NPT_Time.h"
 
@@ -15,23 +14,14 @@
 #include "settings_MQTT.h"       // Настройки и работа с MQTT
 #include "WebUpdate.h"    // OTA-обновление через AsyncOTA
 
-#include "Timer_Relay.h"
 #include "ds18.h"
-
-
-/************************* Подключаем библиотеку  АЦП модуль ADS1115 16-бит *********************************/
-#include <Adafruit_ADS1X15.h> // Библиотека для работы с модулями ADS1115 и ADS1015 (используется в PH_CL2.h)
-//Adafruit_ADS1115 ads;  /* Use this for the 16-bit version */
-Adafruit_ADS1115 ads1; // Первый ADS1115 - PH
-Adafruit_ADS1115 ads2; // Второй ADS1115 - Хлор 
-//Adafruit_ADS10
-
-#include "ModbusRTU_RS485.h"
 
 
 #include "LED_WS2815.h"
 
-#include "PH_CL2.h"
+bool ReadRelayArray[16] = {false}; // Заглушка: Modbus удален, состояния реле всегда неактивны.
+bool ReadInputArray[16] = {false}; // Заглушка: Modbus удален, состояния входов всегда неактивны.
+
 
 
 constexpr BaseType_t kWebMqttCore = 0; // Назначаем ядро 0 для общего сетевого контура WiFi+WEB+MQTT.
@@ -111,14 +101,6 @@ void setup() {
   gmtOffset_correct = normalizeGmtOffset(gmtOffset_correct);
   Saved_gmtOffset_correct = gmtOffset_correct;
 
- // Загрузка параметров из EEPROM после перезагрузки
-  auto sanitizeDosingPeriod = [](int value) -> int {
-    if(value < 1) return 1;
-    if(value > 13) return 13;
-    return value;
-  };
-  ACO_Work = sanitizeDosingPeriod(loadValue<int>("ACO_Work", ACO_Work));
-  H2O2_Work = sanitizeDosingPeriod(loadValue<int>("H2O2_Work", H2O2_Work));
 
   // Загрузка и применение MQTT параметров
   Serial.println("[BOOT] Loading MQTT settings...");
@@ -133,8 +115,6 @@ void setup() {
   adminPassword = loadValue<String>("adminPass", "");
 
   beginWebUpdate();  // Запуск OTA-обновлений на порту 8080
-
-  setup_ADS1115_PH_CL2(); //Настраиваем  АЦП модуль ADS1115 16-бит
 
 
   setupDs18Bindings(); // Загружаем и применяем связанные настройки DS18B20.
@@ -159,7 +139,6 @@ void setup() {
   dash.begin(); // Запуск дашборда
 
 
-  setup_Modbus();
 
   xTaskCreatePinnedToCore(webMqttTask, "WebMqttCoreTask", 8192, nullptr, 2, &webMqttTaskHandle, kWebMqttCore); // Создаем и прикрепляем задачу WiFi+WEB+MQTT именно к ядру 0.
   Serial.printf("[BOOT] CORE MAP -> WiFi+WEB+MQTT: %d | Main logic(loop): %d\n", kWebMqttCore, kMainLogicCore); // Печатаем явную карту ядер, чтобы одним взглядом видеть распределение.
@@ -177,36 +156,6 @@ Serial.printf(
 }
 
 
-inline void acoServiceLoop(){ // Сервисная обработка кнопки ручного импульса ACO без id-логики
-  static bool lastUiState = false; // Предыдущее состояние UI-кнопки ACO
-  const bool uiState = Power_ACO; // Текущее состояние кнопки из UI
-  const bool actualState = ReadRelayArray[6]; // Фактическое состояние реле ACO из Modbus
-  if(uiState != actualState){ // Если UI изменил состояние относительно фактического
-    if(uiState && !lastUiState){ // Отслеживаем фронт нажатия кнопки
-      ManualPulse_ACO_Active = true; // Активируем ручной импульс ACO
-      ManualPulse_ACO_StartedAt = millis(); // Фиксируем время запуска импульса
-    } // Конец обработки фронта
-    Power_ACO = actualState; // Возвращаем значение к фактическому состоянию
-    saveButtonState("Power_ACO_Button", actualState ? 1 : 0); // Сохраняем корректное состояние кнопки
-  } // Конец обработки расхождения UI и фактического состояния
-  lastUiState = uiState; // Запоминаем состояние кнопки для детекции фронта
-} // Конец acoServiceLoop
-
-inline void h2o2ServiceLoop(){ // Сервисная обработка кнопки ручного импульса H2O2 без id-логики
-  static bool lastUiState = false; // Предыдущее состояние UI-кнопки H2O2
-  const bool uiState = Power_H2O2; // Текущее состояние кнопки из UI
-  const bool actualState = ReadRelayArray[5]; // Фактическое состояние реле H2O2 из Modbus
-  if(uiState != actualState){ // Если UI изменил состояние относительно фактического
-    if(uiState && !lastUiState){ // Отслеживаем фронт нажатия кнопки
-      ManualPulse_H2O2_Active = true; // Активируем ручной импульс H2O2
-      ManualPulse_H2O2_StartedAt = millis(); // Фиксируем время запуска импульса
-    } // Конец обработки фронта
-    Power_H2O2 = actualState; // Возвращаем значение к фактическому состоянию
-    saveButtonState("Power_H2O2_Button", actualState ? 1 : 0); // Сохраняем корректное состояние кнопки
-  } // Конец обработки расхождения UI и фактического состояния
-  lastUiState = uiState; // Запоминаем состояние кнопки для детекции фронта
-} // Конец h2o2ServiceLoop
-
 
 /* ---------- Loop ---------- */
 void loop() {
@@ -220,18 +169,9 @@ void loop() {
 
   handleDs18ScanButton(); // Обрабатываем кнопку поиска датчиков DS18B20.
 
-    acoServiceLoop(); // Обработка ручного импульса ACO по состоянию
-  h2o2ServiceLoop(); // Обработка ручного импульса H2O2 по состоянию
   // Обновление времени через NTP/память
   NPT_Time(period_get_NPT_Time);
   CurrentTime = getCurrentDateTime();   // Получение текущего времени
-
-TimerControlRelay(10000);  // TimerControlRelay(600); //Контроль включения реле по таймерам
-updateCleanSequence(); // Обновление последовательности промывки
-updateManualPumpPulses(); // Для прверки перельстатических насосов - счет таймера - 1 сек
-ControlModbusRelay(1000); // Отправка команд на Modbus-реле
-loop_PH(2000); // Обработка логики PH
-loop_CL2(2100); // Обработка логики хлора
 
 
 
@@ -242,46 +182,9 @@ loop_CL2(2100); // Обработка логики хлора
   // Temperatura = random(220, 320) / 10.0f;      // Случайная температура
   Temperatura = DS1;      // Температура в бассейне
   
-  // Формирование информационных строк
-  String dinStatus = "🧩 Плата Modbus RTU RS485 Relay 16CH + DI16\n";
-
-  dinStatus += "\n🔌 РЕЛЕ 1-8  : ";
-  for (int i = 0; i < 8; ++i) {
-    dinStatus += String(i + 1) + (ReadRelayArray[i] ? "🟢" : "⚫");
-    if (i < 7) {
-      dinStatus += " ";
-    }
-  }
-  dinStatus += "\n🔌 РЕЛЕ 9-16 : ";
-  for (int i = 8; i < 16; ++i) {
-    dinStatus += String(i + 1) + (ReadRelayArray[i] ? "🟢" : "⚫");
-    if (i < 15) {
-      dinStatus += " ";
-    }
-  }
-
-  dinStatus += "\n\n📥 ВХОДЫ 1-8 : ";
-  for (int i = 0; i < 8; ++i) {
-    dinStatus += String(i + 1) + (ReadInputArray[i] ? "🔵" : "⚪");
-    if (i < 7) {
-      dinStatus += " ";
-    }
-  }
-
-  dinStatus += "\n📥 ВХОДЫ 9-16: ";
-  for (int i = 8; i < 16; ++i) {
-    dinStatus += String(i + 1) + (ReadInputArray[i] ? "🔵" : "⚪");
-    if (i < 15) {
-      dinStatus += " ";
-    }
-  }
-
-  dinStatus += "\n\n🟢/🔵 = активно   ⚫/⚪ = неактивно";
-
-
   InfoString = "Random value is " + String(RandomVal) + " at " + CurrentTime + "Pow_WS2815 = " + String(Pow_WS2815);
-  InfoStringRS485Model = "Waveshare Modbus RTU RS485 Relay 16CH + DI16";
-  InfoStringDIN = dinStatus;
+  InfoStringRS485Model = "Modbus disabled";
+  InfoStringDIN = "Контроль Modbus отключен в этой версии проекта.";
   InfoString1 = /*"Speed " + String(Speed, 1) + " / Temp " + String(Temperatura, 1)*/ + " button1 = " + String(button1)
               + " RangeSlider = " + String(RangeMin) + " / " + String(RangeMax);
   
@@ -290,33 +193,10 @@ loop_CL2(2100); // Обработка логики хлора
   OverlayHeaterTemp = "♨️ После нагревателя: " + formatTemperatureString(DS2, DS2Available);
   OverlayLevelUpper = String("🛟 Верхний уровень: ") + (WaterLevelSensorUpper ? "Активен" : "Нет уровня");
   OverlayLevelLower = String("🛟 Нижний уровень: ") + (WaterLevelSensorLower ? "Активен" : "Нет уровня");
-  OverlayPh = "🧪 pH: " + String(PH, 2);
-  OverlayChlorine = "🧴 Cl: " + String(ppmCl, 3) + " ppm";
-  // OverlayFilterState = String("🧽 Фильтр: ") + (Power_Clean ? "Промывка" : (Power_Filtr ? "Фильтрация" : "Остановлен"));
-  String filterStateDetails;
-  if (Power_Clean || CleanSequenceActive) {
-    String cleanStage = CommentClean;
-    if (cleanStage.length() == 0) {
-      cleanStage = "Промывка активна";
-    }
-    filterStateDetails = "Промывка / " + cleanStage;
-  } else if (Power_Filtr) {
-    filterStateDetails = FiltrationTimerActive ? "Фильтрация (по таймеру)" : "Фильтрация (ручной режим)";
-  } else {
-    filterStateDetails = "Остановлен";
-  }
-  OverlayFilterState = String("🧽 Фильтр: ") + filterStateDetails;
-
-
-
-
-  if (Power_Clean) {
-    jpg = 2;
-  } else if (Power_Filtr) {
-    jpg = 1;
-  } else {
-    jpg = 1;
-  }
+  OverlayPh = "🧪 pH: отключено";
+  OverlayChlorine = "🧴 Cl: отключено";
+  OverlayFilterState = "🧽 Фильтр: отключено";
+  jpg = 1;
 
 //   // ---------- Рандомный цвет LED ----------
 //   // LEDColor = "#" + String((random(0x1000000) | 0x1000000), HEX).substring(1);
