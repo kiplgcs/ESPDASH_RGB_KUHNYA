@@ -22,7 +22,8 @@ inline void interface(){ // Декларатиынве функции интер
     UI_CHECKBOX("WS2815_Time1", WS2815_Time1, "⏲️ Таймер RGB ленты"); //Галочка - активания/деактивация таймера
     UI_SELECT_CB("SetRGB", SetRGB, (std::initializer_list<UIOption>{{"off", "RGB подсветка отключена постоянно"},
                                    {"on", "RGB подсветка включена постоянно"},
-                                   {"auto", "Автоматически по датчику присутствия"}}), "🎛️ Режим управления RGB подсветкой", onSetRgbChange);
+                                      {"auto", "Автоматически по датчику присутствия"},
+                                   {"timer", "По таймеру"}}), "🎛️ Режим управления RGB подсветкой", onSetRgbChange);
         UI_TIMER("RgbTimer", "⏲️ Таймер RGB ленты", RgbTimerON, RgbTimerOFF, noopTimerCallback);
 UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     UI_SELECT_CB("LedColorMode", LedColorMode, (std::initializer_list<UIOption>{{"auto", "Автоматически"},

@@ -960,6 +960,10 @@ inline void onSetRgbChange(const String &value){ // обработчик изм�
         Pow_WS2815 = false;
         Pow_WS2815_autosvet = true;
         WS2815_Time1 = false;
+            } else if(SetRGB == "timer"){ // режим работы по таймеру
+        Pow_WS2815 = false;
+        Pow_WS2815_autosvet = false;
+        WS2815_Time1 = true;
     } else { // любое другое значение — всё выключено
         Pow_WS2815 = false;
         Pow_WS2815_autosvet = false;
