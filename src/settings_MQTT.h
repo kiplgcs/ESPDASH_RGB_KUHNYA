@@ -275,7 +275,7 @@ inline bool mqttPayloadIsOff(String payload){ // проверка выключе
 inline bool mqttIsAllowedMode(String value){ // проверка режима
   value.trim();
   value.toLowerCase();
-  return value == "off" || value == "on" || value == "auto" || value == "timer"; // допустимые режимы
+  return value == "off" || value == "on" || value == "auto"; // допустимые режимы
 }
 
 inline String mqttNormalizedMode(String value){
@@ -294,11 +294,8 @@ inline void mqttApplyRgbMode(const String &rawMode){
     Pow_WS2815 = false;
     Pow_WS2815_autosvet = true;
     WS2815_Time1 = false;
-  } else if(SetRGB == "timer"){
-    Pow_WS2815 = false;
-    Pow_WS2815_autosvet = false;
-    WS2815_Time1 = true;
   } else {
+        SetRGB = "off";
     Pow_WS2815 = false;
     Pow_WS2815_autosvet = false;
     WS2815_Time1 = false;

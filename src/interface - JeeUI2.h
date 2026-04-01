@@ -22,8 +22,7 @@ inline void interface(){ // Декларатиынве функции интер
     UI_CHECKBOX("WS2815_Time1", WS2815_Time1, "⏲️ Таймер RGB ленты"); //Галочка - активания/деактивация таймера
     UI_SELECT_CB("SetRGB", SetRGB, (std::initializer_list<UIOption>{{"off", "RGB подсветка отключена постоянно"},
                                    {"on", "RGB подсветка включена постоянно"},
-                                   {"auto", "Включение по датчику освещенности (<20%)"},
-                                   {"timer", "Включение по таймеру"}}), "🎛️ Режим управления RGB подсветкой", onSetRgbChange);
+                                   {"auto", "Автоматически по датчику присутствия"}}), "🎛️ Режим управления RGB подсветкой", onSetRgbChange);
         UI_TIMER("RgbTimer", "⏲️ Таймер RGB ленты", RgbTimerON, RgbTimerOFF, noopTimerCallback);
 UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     UI_SELECT_CB("LedColorMode", LedColorMode, (std::initializer_list<UIOption>{{"auto", "Автоматически"},
@@ -64,10 +63,10 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
     UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ LED_WS2815 HLK-LD2410C");
-        UI_NUMBER("HLK_LD2410C_RX_PIN", HLK_LD2410C_RX_PIN, "📥 RX-пин ESP32", false);
-        UI_NUMBER("HLK_LD2410C_TX_PIN", HLK_LD2410C_TX_PIN, "📤 TX-пин ESP32", false);
-        UI_NUMBER("HLK_LD2410C_BAUD", HLK_LD2410C_BAUD, "🔌 Скорость UART (baud)", false);
-        UI_NUMBER("HLK_LD2410C_UART_PORT", HLK_LD2410C_UART_PORT, "🧵 UART порт ESP32", false);
+        // UI_NUMBER("HLK_LD2410C_RX_PIN", HLK_LD2410C_RX_PIN, "📥 RX-пин ESP32", false);
+        // UI_NUMBER("HLK_LD2410C_TX_PIN", HLK_LD2410C_TX_PIN, "📤 TX-пин ESP32", false);
+        // UI_NUMBER("HLK_LD2410C_BAUD", HLK_LD2410C_BAUD, "🔌 Скорость UART (baud)", false);
+        // UI_NUMBER("HLK_LD2410C_UART_PORT", HLK_LD2410C_UART_PORT, "🧵 UART порт ESP32", false);
 
         UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
         UI_NUMBER("KITCHEN_DISTANCE_NEAR_EXIT_M", KITCHEN_DISTANCE_NEAR_EXIT_M, "📏 Выход из ближней зоны (м)", true);
