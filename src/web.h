@@ -176,7 +176,7 @@ uint16_t Saved_Lamp_timeON1, Saved_Lamp_timeOFF1;
 
 bool Power_Heat, Power_Heat1;
 bool Activation_Heat, Activation_Heat1; // Включение и Активация контроля включения нагрева воды
-int Sider_heat,  Sider_heat1; 			// Sider_heat1; bool Sider_Heat; // Переменная для получения или передачи из в  Nextion c  сидера монитора уставки нагрева воды
+int Sider_heat,  Sider_heat1; 			// Sider_heat1; bool Sider_Heat; // Уставка нагрева воды из интерфейса
 
 bool RoomTemper = false;
 float RoomTempOn = 3.0f;
@@ -2959,7 +2959,6 @@ function setImg(x){
           gmtOffset_correct = offset;
           Saved_gmtOffset_correct = offset;
           saveValue<int>("gmtOffset", offset);
-          myNex.writeNum("pageRTC.n5.val", offset);
         }
                 else if(key=="graphMainMaxPoints") {
           int valInt = valStr.toInt();
@@ -3034,7 +3033,6 @@ function setImg(x){
         gmtOffset_correct = offset;
         Saved_gmtOffset_correct = offset;
         saveValue<int>("gmtOffset", offset);
-        myNex.writeNum("pageRTC.n5.val", offset);
       }
       if(dateStr.length() < 8 || timeStr.length() < 4){
         r->send(400, "application/json", "{\"status\":\"error\",\"error\":\"Некорректная дата/время\"}");
@@ -3101,7 +3099,6 @@ function setImg(x){
         return;
       }
       setBaseEpoch(epoch);
-      syncNextionRtcFromEpoch(epoch);
       String payloadJson = "{\"status\":\"ok\",\"current\":\"" + jsonEscape(getCurrentDateTime()) + "\"}";
       r->send(200, "application/json", payloadJson);
     });
