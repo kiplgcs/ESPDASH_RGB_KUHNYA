@@ -8,7 +8,7 @@ inline void interface(){ // Декларатиынве функции интер
     UI_MENU("🌈 Управление RGB подсветкой");
     UI_HIDDEN("ThemeColor", ThemeColor);
 
-    UI_MENU("🧰 test");
+    // UI_MENU("🧰 test");
 
 
 
@@ -64,49 +64,61 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
 
 
 
-    // test: по 1 примеру каждого вида декларативной функции
-    UI_PAGE();
+    // // test: по 1 примеру каждого вида декларативной функции
+    // UI_PAGE();
 
-    UI_IMAGE("TestImage", "/Basin.jpg", "width:100%;height:220;");
-    UI_TEXT("TestText", OverlayFilterState, "💬 Пример UI_TEXT");
+    // UI_IMAGE("TestImage", "/Basin.jpg", "width:100%;height:220;");
+    // UI_TEXT("TestText", OverlayFilterState, "💬 Пример UI_TEXT");
 
-    UI_BUTTON("TestButton", button1, "gray", "🔘 Пример UI_BUTTON");
-    UI_BUTTON_DEFAULT("TestButtonDefault", Pow_WS2815, "gray", "🌈 Пример UI_BUTTON_DEFAULT", 1);
+    // UI_BUTTON("TestButton", button1, "gray", "🔘 Пример UI_BUTTON");
+    // UI_BUTTON_DEFAULT("TestButtonDefault", Pow_WS2815, "gray", "🌈 Пример UI_BUTTON_DEFAULT", 1);
 
-    UI_CHECKBOX("TestCheckbox", Filtr_Time1, "☑️ Пример UI_CHECKBOX");
+    // UI_CHECKBOX("TestCheckbox", Filtr_Time1, "☑️ Пример UI_CHECKBOX");
 
-    UI_DISPLAY_INT("TestDisplayInt", RandomVal, "🔢 Пример UI_DISPLAY_INT");
-    UI_DISPLAY_FLOAT("TestDisplayFloat", DS1, "🌡 Пример UI_DISPLAY_FLOAT");
-    UI_DISPLAY_BOOL("TestDisplayBool", Power_Heat, "⚙️ Пример UI_DISPLAY_BOOL", "ON", "OFF");
-    UI_DISPLAY("TestDisplay", Ds18HelpText, "ℹ️ Пример UI_DISPLAY");
+    // UI_DISPLAY_INT("TestDisplayInt", RandomVal, "🔢 Пример UI_DISPLAY_INT");
+    // UI_DISPLAY_FLOAT("TestDisplayFloat", DS1, "🌡 Пример UI_DISPLAY_FLOAT");
+    // UI_DISPLAY_BOOL("TestDisplayBool", Power_Heat, "⚙️ Пример UI_DISPLAY_BOOL", "ON", "OFF");
+    // UI_DISPLAY("TestDisplay", Ds18HelpText, "ℹ️ Пример UI_DISPLAY");
 
-    UI_NUMBER("TestNumberInt", IntInput, "🔢 Пример UI_NUMBER int", false);
-    UI_NUMBER("TestNumberFloat", FloatInput, "🔣 Пример UI_NUMBER float", true);
+    // UI_NUMBER("TestNumberInt", IntInput, "🔢 Пример UI_NUMBER int", false);
+    // UI_NUMBER("TestNumberFloat", FloatInput, "🔣 Пример UI_NUMBER float", true);
 
-    UI_RANGE("TestRange", MotorSpeedSetting, 0, 100, 1, "🎚️ Пример UI_RANGE");
-    UI_RANGE_CB("TestRangeCb", LedBrightness, 10, 255, 1, "🔆 Пример UI_RANGE_CB", onLedBrightnessChange);
-    UI_DUAL_RANGE_KEYS("TestDualRange", RangeMin, RangeMax, "RangeMin", "RangeMax", 10, 40, 1, "🎛️ Пример UI_DUAL_RANGE_KEYS");
+    // UI_RANGE("TestRange", MotorSpeedSetting, 0, 100, 1, "🎚️ Пример UI_RANGE");
+    // UI_RANGE_CB("TestRangeCb", LedBrightness, 10, 255, 1, "🔆 Пример UI_RANGE_CB", onLedBrightnessChange);
+    // UI_DUAL_RANGE_KEYS("TestDualRange", RangeMin, RangeMax, "RangeMin", "RangeMax", 10, 40, 1, "🎛️ Пример UI_DUAL_RANGE_KEYS");
 
-    UI_TIME("TestTime", Timer1, "⏰ Пример UI_TIME");
-    UI_TIMER("TestTimer", "⏱️ Пример UI_TIMER", TimertestON, TimertestOFF, noopTimerCallback);
-    UI_SELECT_DAYS("TestDays", DaysSelect, "📅 Пример UI_SELECT_DAYS");
+    // UI_TIME("TestTime", Timer1, "⏰ Пример UI_TIME");
+    // UI_TIMER("TestTimer", "⏱️ Пример UI_TIMER", TimertestON, TimertestOFF, noopTimerCallback);
+    // UI_SELECT_DAYS("TestDays", DaysSelect, "📅 Пример UI_SELECT_DAYS");
 
-    UI_SELECT("TestSelect", LedPattern,
-              (std::initializer_list<UIOption>{{"rainbow", "Радуга"}, {"pulse", "Пульс"}}),
-              "📚 Пример UI_SELECT");
+    // UI_SELECT("TestSelect", LedPattern,
+    //           (std::initializer_list<UIOption>{{"rainbow", "Радуга"}, {"pulse", "Пульс"}}),
+    //           "📚 Пример UI_SELECT");
 
-    UI_SELECT_CB("TestSelectCb", SetLamp,
-                 (std::initializer_list<UIOption>{{"off", "Выкл"}, {"on", "Вкл"}, {"auto", "Авто"}}),
-                 "💡 Пример UI_SELECT_CB", onSetLampChange);
+    // UI_SELECT_CB("TestSelectCb", SetLamp,
+    //              (std::initializer_list<UIOption>{{"off", "Выкл"}, {"on", "Вкл"}, {"auto", "Авто"}}),
+    //              "💡 Пример UI_SELECT_CB", onSetLampChange);
 
-    UI_COLOR("TestColor", LEDColor, "🎨 Пример UI_COLOR");
+    // UI_COLOR("TestColor", LEDColor, "🎨 Пример UI_COLOR");
 
-    UI_GRAPH_SOURCE("TestGraph", "📈 Пример UI_GRAPH_SOURCE",
-                    "value:Temperatura;updatePeriod_of_Time:60;updateStep:5;maxPoints:40;width:100%;height:240;"
-                    "xLabel:Time;yLabel:Temperature;pointColor:#6b66ff;lineColor:#ff5e5e;"
-                    "lineWidth:1;pointRadius:3;smooth:false", DS1);
+    // UI_GRAPH_SOURCE("TestGraph", "📈 Пример UI_GRAPH_SOURCE",
+    //                 "value:Temperatura;updatePeriod_of_Time:60;updateStep:5;maxPoints:40;width:100%;height:240;"
+    //                 "xLabel:Time;yLabel:Temperature;pointColor:#6b66ff;lineColor:#ff5e5e;"
+    //                 "lineWidth:1;pointRadius:3;smooth:false", DS1);
 
-    UI_POPUP_BEGIN("TestPopup", "🧪 Пример UI_POPUP", "🪟 Открыть popup");
-        UI_TEXT("TestPopupText", OverlayPoolTemp, "Текст внутри popup");
-    UI_POPUP_END();
+    //       UI_POPUP_BEGIN("Ds18Config", "⚙️ Настройка DS18B20", "⚙️ Настройка DS18B20"); // Уникальный ID popup для DS18B20, чтобы не конфликтовать с другим DataEntry.
+    //         UI_DISPLAY("Ds18HelpText", Ds18HelpText, "ℹ️ Подсказка"); // Пояснение по шагам: поиск -> выбор индекса -> назначение.
+    //         UI_DISPLAY("Ds18ScanInfo", Ds18ScanInfo, "🔍 Найденные датчики на шине"); // Статус и список адресов после ручного поиска.
+    //         UI_BUTTON("ds18ScanButton", Ds18ScanButton, "gray", "🔍 Поиск датчиков на шине"); // Поиск запускается только по нажатию этой кнопки.
+    //         UI_DISPLAY("Ds18Sensor0Address", Ds18Sensor0Address, "🏊 Адрес датчика температуры бассейна"); // Текущий адрес, привязанный к DS1.
+    //         UI_SELECT_CB("Ds18Sensor0Index", Ds18Sensor0Index, // Выбор индекса найденного датчика для температуры бассейна.
+    //         (std::initializer_list<UIOption>{{"-1", "❌ Отвязать датчик"}, {"0", "Индекс 0"}, {"1", "Индекс 1"}, {"2", "Индекс 2"}, {"3", "Индекс 3"}, {"4", "Индекс 4"}, {"5", "Индекс 5"}, {"6", "Индекс 6"}, {"7", "Индекс 7"}, {"8", "Индекс 8"}, {"9", "Индекс 9"}, {"10", "Индекс 10"}, {"11", "Индекс 11"}, {"12", "Индекс 12"}, {"13", "Индекс 13"}, {"14", "Индекс 14"}, {"15", "Индекс 15"}}),
+    //                      "➡️ Назначить на температуру бассейна", onDs18Sensor0Select); // Назначаем выбранный адрес в sensor0 и сохраняем в NVS.
+    //         UI_DISPLAY("Ds18Sensor1Address", Ds18Sensor1Address, "♨️ Адрес датчика после нагревателя"); // Текущий адрес, привязанный к DS2.
+    //         UI_SELECT_CB("Ds18Sensor1Index", Ds18Sensor1Index, // Выбор индекса найденного датчика для температуры после нагревателя.
+    //         (std::initializer_list<UIOption>{{"-1", "❌ Отвязать датчик"}, {"0", "Индекс 0"}, {"1", "Индекс 1"}, {"2", "Индекс 2"}, {"3", "Индекс 3"}, {"4", "Индекс 4"}, {"5", "Индекс 5"}, {"6", "Индекс 6"}, {"7", "Индекс 7"}, {"8", "Индекс 8"}, {"9", "Индекс 9"}, {"10", "Индекс 10"}, {"11", "Индекс 11"}, {"12", "Индекс 12"}, {"13", "Индекс 13"}, {"14", "Индекс 14"}, {"15", "Индекс 15"}}),
+    //                      "➡️ Назначить на температуру после нагревателя", onDs18Sensor1Select); // Назначаем выбранный адрес в sensor1 и сохраняем в NVS.
+    //     UI_POPUP_END();
+
+
 }
