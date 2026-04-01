@@ -2,6 +2,7 @@
 #pragma once
 
 #include "ui - JeeUI2.h"
+#include "HLK-LD2410C.h"
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
@@ -11,7 +12,9 @@ inline void interface(){ // Декларатиынве функции интер
     // UI_MENU("🧰 test");
 
 
+        // UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ LED_WS2815 HLK-LD2410C"); 
 
+        // UI_POPUP_END();
 
 // Управление RGB подсветкой
     UI_PAGE();
@@ -59,6 +62,30 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"RBG", "RBG"},
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
+
+    UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ LED_WS2815 HLK-LD2410C");
+        UI_NUMBER("HLK_LD2410C_RX_PIN", HLK_LD2410C_RX_PIN, "📥 RX-пин ESP32", false);
+        UI_NUMBER("HLK_LD2410C_TX_PIN", HLK_LD2410C_TX_PIN, "📤 TX-пин ESP32", false);
+        UI_NUMBER("HLK_LD2410C_BAUD", HLK_LD2410C_BAUD, "🔌 Скорость UART (baud)", false);
+        UI_NUMBER("HLK_LD2410C_UART_PORT", HLK_LD2410C_UART_PORT, "🧵 UART порт ESP32", false);
+
+        UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
+        UI_NUMBER("KITCHEN_DISTANCE_NEAR_EXIT_M", KITCHEN_DISTANCE_NEAR_EXIT_M, "📏 Выход из ближней зоны (м)", true);
+        UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
+        UI_NUMBER("KITCHEN_DISTANCE_FAR_EXIT_M", KITCHEN_DISTANCE_FAR_EXIT_M, "📏 Выход из дальней зоны (м)", true);
+
+        UI_NUMBER("KITCHEN_APPROACH_ANIMATION_MS", KITCHEN_APPROACH_ANIMATION_MS, "⏱️ APPROACH анимация (мс)", false);
+        UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Пауза TRANSITION (мс)", false);
+        UI_NUMBER("KITCHEN_AMBIENT_DURATION_MS", KITCHEN_AMBIENT_DURATION_MS, "⏱️ Длительность AMBIENT (мс)", false);
+        UI_NUMBER("KITCHEN_SENSOR_CONFIRM_MS", KITCHEN_SENSOR_CONFIRM_MS, "⏱️ Подтверждение датчика (мс)", false);
+        UI_NUMBER("KITCHEN_SIGNAL_HOLD_MS", KITCHEN_SIGNAL_HOLD_MS, "⏱️ Удержание сигнала (мс)", false);
+        UI_NUMBER("KITCHEN_FADE_IN_MS", KITCHEN_FADE_IN_MS, "🌅 Плавное включение (мс)", false);
+        UI_NUMBER("KITCHEN_FADE_OUT_MS", KITCHEN_FADE_OUT_MS, "🌙 Плавное выключение (мс)", false);
+
+        UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
+        UI_RANGE("KITCHEN_AMBIENT_BRIGHTNESS", KITCHEN_AMBIENT_BRIGHTNESS, 1, 255, 1, "✨ Яркость декоративного света");
+        UI_RANGE("KITCHEN_FILTER_WINDOW", KITCHEN_FILTER_WINDOW, 1, KITCHEN_FILTER_WINDOW_MAX, 1, "🧮 Окно сглаживания дистанции");
+    UI_POPUP_END();
 
 
 
