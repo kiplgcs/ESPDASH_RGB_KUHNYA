@@ -26,6 +26,7 @@ inline float KITCHEN_DISTANCE_FAR_ENTER_M = 3.8f; // Порог входа в д
 inline float KITCHEN_DISTANCE_FAR_EXIT_M = 3.2f; // Порог выхода из дальней зоны (возврат к рабочей зоне).
 inline float KITCHEN_NEAR_HYSTERESIS_M = 0.4f; // Гистерезис ближней зоны (добавляется к порогу входа, 0..1 м).
 inline float KITCHEN_FAR_HYSTERESIS_M = 0.5f; // Гистерезис дальней зоны (добавляется к порогу входа, 0..1 м).
+inline float KITCHEN_ZONE_MIN_GAP_M = 0.15f; // Минимальный технологический разрыв между соседними порогами зон.
 inline int KITCHEN_LED_COUNT = 180; // Количество светодиодов, используемых автоматикой HLK (1..NUM_LEDS).
 inline String KITCHEN_NEAR_ENTRY_EFFECT = "edge_white"; // Эффект перехода из дальней зоны в ближнюю.
 inline uint32_t KITCHEN_NEAR_ENTRY_EFFECT_MS = 700UL; // Длительность эффекта перехода far->near.
@@ -61,8 +62,6 @@ struct SensorReading { // Структура для унифицированно
 static HardwareSerial *gHlkSerial = nullptr; // Указатель на UART-экземпляр для HLK-LD2410C.
 static LightingState gLightingState = LightingState::IDLE; // Текущее состояние конечного автомата подсветки.
 static uint32_t gStateStartedAt = 0; // Время входа в текущее состояние.
-static uint32_t gNearCandidateSince = 0; // Время начала кандидата на ближнюю зону.
-static uint32_t gFarCandidateSince = 0; // Время начала кандидата на дальнюю зону.
 static uint32_t gLastSeenAt = 0; // Время последнего достоверного обнаружения цели.
 static float gDistanceWindow[KITCHEN_FILTER_WINDOW_MAX] = {0}; // Буфер скользящего среднего по расстоянию.
 static uint16_t gDistanceCount = 0; // Количество фактически заполненных элементов буфера.
@@ -288,8 +287,6 @@ static inline String rgbControlModeNormalized() { // Нормализуем вы
 } // Закрываем helper нормализации режима.
 
 static inline void resetKitchenAutomationState(uint32_t now) { // Сбрасываем состояние автомата присутствия при выходе из режима AUTO.
-    gNearCandidateSince = 0; // Сбрасываем дебаунс входа в ближнюю зону.
-    gFarCandidateSince = 0; // Сбрасываем дебаунс входа в дальнюю зону.
     gDistanceCount = 0; // Очищаем окно фильтра дистанции.
     gDistanceIndex = 0; // Возвращаем индекс фильтра в начало.
     gFilteredDistanceM = 99.0f; // Ставим безопасную «далекую» дистанцию по умолчанию.
@@ -306,23 +303,6 @@ static inline void resetKitchenAutomationState(uint32_t now) { // Сбрасыв
     kitchenSetState(LightingState::IDLE, now); // Возвращаем автомат в состояние ожидания/выключения.
 } // Закрываем helper сброса автоматики.
 
-static inline bool isNearConfirmed(uint32_t now) { // Проверяем подтверждение ближней зоны с debounce.
-    if (gFilteredDistanceM <= KITCHEN_DISTANCE_NEAR_ENTER_M) { // Если усредненная дистанция в пороге входа в near.
-        if (gNearCandidateSince == 0) { gNearCandidateSince = now; } // Запоминаем старт кандидата на near.
-        return (now - gNearCandidateSince) >= KITCHEN_SENSOR_CONFIRM_MS; // Подтверждаем near после выдержки времени.
-    } // Завершаем ветку обработки near.
-    gNearCandidateSince = 0; // Сбрасываем кандидат near при выходе за порог.
-    return false; // Не подтверждаем near при отсутствии выдержки/условия.
-} // Закрываем проверку near.
-
-static inline bool isFarConfirmed(uint32_t now) { // Проверяем подтверждение дальней зоны с debounce.
-    if (gFilteredDistanceM >= KITCHEN_DISTANCE_FAR_ENTER_M) { // Если усредненная дистанция перешла в дальнюю зону.
-        if (gFarCandidateSince == 0) { gFarCandidateSince = now; } // Фиксируем начало кандидата на far.
-        return (now - gFarCandidateSince) >= KITCHEN_SENSOR_CONFIRM_MS; // Подтверждаем far после выдержки.
-    } // Завершаем ветку обработки far.
-    gFarCandidateSince = 0; // Сбрасываем кандидат far, если дистанция снова уменьшилась.
-    return false; // Не подтверждаем far без стабильного условия.
-} // Закрываем проверку far.
 
 static inline void setup_HLK_LD2410C() { // Публичная инициализация датчика и автоматики.
     if (gHlkSerial) { // Если UART уже создавался ранее.
@@ -356,21 +336,30 @@ static inline void loop_HLK_LD2410C() { // Основной update-метод st
 
 const float nearHyst = constrain(KITCHEN_NEAR_HYSTERESIS_M, 0.0f, 1.0f); // Ограничиваем гистерезис ближней зоны 0..1 м.
     const float farHyst = constrain(KITCHEN_FAR_HYSTERESIS_M, 0.0f, 1.0f); // Ограничиваем гистерезис дальней зоны 0..1 м.
-    const float nearFrom = constrain(KITCHEN_DISTANCE_NEAR_ENTER_M, 0.0f, max(0.0f, 5.0f - nearHyst)); // Ближняя зона: 0..5 м (с учетом гистерезиса).
-    const float nearTo = nearFrom + nearHyst; // Верхняя граница ближней зоны = вход + гистерезис.
-    const float farFrom = constrain(KITCHEN_DISTANCE_FAR_ENTER_M, nearTo, max(nearTo, 10.0f - farHyst)); // Дальняя зона: от границы ближней до 10 м.
-    const float farTo = farFrom + farHyst; // Верхняя граница дальней зоны = вход + гистерезис.
 
-    KITCHEN_DISTANCE_NEAR_ENTER_M = nearFrom; // Нормализуем значение в допустимые границы.
-    KITCHEN_DISTANCE_FAR_ENTER_M = farFrom; // Нормализуем значение в допустимые границы.
+    const float nearEnter = constrain(KITCHEN_DISTANCE_NEAR_ENTER_M, 0.0f, 9.0f); // Порог входа в ближнюю зону.
+    const float nearExit = constrain(max(KITCHEN_DISTANCE_NEAR_EXIT_M, nearEnter + nearHyst), nearEnter + KITCHEN_ZONE_MIN_GAP_M, 9.4f); // Порог выхода из ближней зоны.
+    const float farEnter = constrain(max(KITCHEN_DISTANCE_FAR_ENTER_M, nearExit + KITCHEN_ZONE_MIN_GAP_M), nearExit + KITCHEN_ZONE_MIN_GAP_M, 10.0f); // Порог входа в дальнюю зону (информативный/UI).
+    const float farExit = constrain(max(KITCHEN_DISTANCE_FAR_EXIT_M, nearEnter + max(farHyst, KITCHEN_ZONE_MIN_GAP_M)), nearEnter + KITCHEN_ZONE_MIN_GAP_M, max(nearEnter + KITCHEN_ZONE_MIN_GAP_M, farEnter - KITCHEN_ZONE_MIN_GAP_M)); // Порог возврата far->near.
+    KITCHEN_DISTANCE_NEAR_ENTER_M = nearEnter; // Синхронизируем UI/настройки с нормализованными порогами.
+    KITCHEN_DISTANCE_NEAR_EXIT_M = nearExit;
+    KITCHEN_DISTANCE_FAR_ENTER_M = farEnter;
+    KITCHEN_DISTANCE_FAR_EXIT_M = farExit;
 
-    // Поддерживаем обратную совместимость с существующими переменными "выхода" для логов/интерфейса/сохранений.
-    KITCHEN_DISTANCE_NEAR_EXIT_M = nearTo;
-    KITCHEN_DISTANCE_FAR_EXIT_M = farTo;
-
-const bool inNearZoneNow = reading.hasTarget && (gFilteredDistanceM >= nearFrom) && (gFilteredDistanceM <= nearTo);
-    const bool inFarZoneNow = reading.hasTarget && (gFilteredDistanceM >= farFrom) && (gFilteredDistanceM <= farTo);
-    const ProximityZone measuredZone = inNearZoneNow ? ProximityZone::NEAR : (inFarZoneNow ? ProximityZone::FAR : ProximityZone::NONE);
+    ProximityZone measuredZone = ProximityZone::NONE; // Вычисляем мгновенную зону с учетом текущей стабильной зоны (гистерезис).
+    if (reading.hasTarget) {
+        const float d = gFilteredDistanceM;
+        if (gStableZone == ProximityZone::NEAR) { // Из NEAR выходим только после nearExit.
+            if (d <= nearExit) { measuredZone = ProximityZone::NEAR; }
+else { measuredZone = ProximityZone::FAR; } // Любая дистанция дальше nearExit считается дальней зоной.
+        } else if (gStableZone == ProximityZone::FAR) { // Из FAR возвращаемся в near только когда реально подошли близко.
+            if (d <= farExit) { measuredZone = ProximityZone::NEAR; }
+            else { measuredZone = ProximityZone::FAR; }
+        } else { // В состоянии NONE делим пространство на near и far без "мертвой" зоны.
+            if (d <= nearEnter) { measuredZone = ProximityZone::NEAR; }
+            else { measuredZone = ProximityZone::FAR; }
+        }
+    }
 
     if (measuredZone != gCandidateZone) { // Новый кандидат зоны — запускаем debounce.
         gCandidateZone = measuredZone;
