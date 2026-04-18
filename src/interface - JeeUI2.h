@@ -66,57 +66,80 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
-      UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты", "⚙️ Настройка работы RGB ленты");
+    //   UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты", "⚙️ Настройка работы RGB ленты");
         
-        UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
-        UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
-        UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
-        UI_NUMBER("KITCHEN_FAR_HYSTERESIS_M", KITCHEN_FAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [дальняя зона, 0..1]", true);
-        UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Задержка перехода Ближняя → Дальняя (мс)", false);
-        UI_NUMBER("KITCHEN_LIGHTS_OFF_DELAY_MS", KITCHEN_LIGHTS_OFF_DELAY_MS, "⏱️ Задержка отключения подсветки (мс)", false);
-         UI_NUMBER("KITCHEN_LED_COUNT", KITCHEN_LED_COUNT, "🔢 Количество светодиодов в ленте (1..1000)", false);
-        UI_SELECT("KITCHEN_NEAR_ENTRY_EFFECT", KITCHEN_NEAR_ENTRY_EFFECT, (std::initializer_list<UIOption>{
-            {"edge_white", "Белый от краев к центру"},
-            {"rainbow", "Радуга"},
-            {"pulse", "Пульс"},
-            {"chase", "Шлейф"},
-            {"comet", "Комета"},
-            {"color_wipe", "Цветовая заливка"},
-            {"theater_chase", "Театр"},
-            {"scanner", "Сканер"},
-            {"sparkle", "Искры"},
-            {"twinkle", "Мерцание"},
-            {"confetti", "Конфетти"},
-            {"waves", "Волны"},
-            {"breathe", "Дыхание"},
-            {"firefly", "Светлячки"},
-            {"ripple", "Рябь"},
-            {"dots", "Бегущие точки"},
-            {"gradient", "Градиент"},
-            {"meteor", "Метеоры"},
-            {"juggle", "Жонглирование"},
-            {"aurora", "Северное сияние"}}), "✨ Эффект при переходе Дальняя → Ближняя");
-        UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
-    UI_POPUP_END();
+    //     UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
+    //     UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
+    //     UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
+    //     UI_NUMBER("KITCHEN_FAR_HYSTERESIS_M", KITCHEN_FAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [дальняя зона, 0..1]", true);
+    //     UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Задержка перехода Ближняя → Дальняя (мс)", false);
+    //     UI_NUMBER("KITCHEN_LIGHTS_OFF_DELAY_MS", KITCHEN_LIGHTS_OFF_DELAY_MS, "⏱️ Задержка отключения подсветки (мс)", false);
+    //      UI_NUMBER("KITCHEN_LED_COUNT", KITCHEN_LED_COUNT, "🔢 Количество светодиодов в ленте (1..1000)", false);
+    //     UI_SELECT("KITCHEN_NEAR_ENTRY_EFFECT", KITCHEN_NEAR_ENTRY_EFFECT, (std::initializer_list<UIOption>{
+    //         {"edge_white", "Белый от краев к центру"},
+    //         {"rainbow", "Радуга"},
+    //         {"pulse", "Пульс"},
+    //         {"chase", "Шлейф"},
+    //         {"comet", "Комета"},
+    //         {"color_wipe", "Цветовая заливка"},
+    //         {"theater_chase", "Театр"},
+    //         {"scanner", "Сканер"},
+    //         {"sparkle", "Искры"},
+    //         {"twinkle", "Мерцание"},
+    //         {"confetti", "Конфетти"},
+    //         {"waves", "Волны"},
+    //         {"breathe", "Дыхание"},
+    //         {"firefly", "Светлячки"},
+    //         {"ripple", "Рябь"},
+    //         {"dots", "Бегущие точки"},
+    //         {"gradient", "Градиент"},
+    //         {"meteor", "Метеоры"},
+    //         {"juggle", "Жонглирование"},
+    //         {"aurora", "Северное сияние"}}), "✨ Эффект при переходе Дальняя → Ближняя");
+    //     UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
+    // UI_POPUP_END();
 
 
 
 
 
-    //⚙️ Все возможное управление и все возможные параметры LD2420
-    UI_PAGE();
-     UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
-                    "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
-                    "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
-                    "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
+    // //⚙️ Все возможное управление и все возможные параметры LD2420
+     UI_PAGE();
+    //  UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
+    //                 "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
+    //                 "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
+    //                 "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
 
-    UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы  LD2420", "⚙️ Настройка работы LD2420");
+   
+    //     UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
+    //     UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
+    //     UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
+    //     UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
 
-        UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
-        UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
-        UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
-        UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
-    UI_POPUP_END();
+
+
+    
+        // UI_SELECT("LD2420_PARSE_MODE", LD2420_PARSE_MODE, (std::initializer_list<UIOption>{{"auto", "Авто (binary+text)"},
+        //                                  {"binary", "Только binary"},
+        //                                  {"text", "Только text"}}), "🧠 Режим парсинга кадров");
+        // UI_NUMBER("LD2420_BAUD_RETRY_MS", LD2420_BAUD_RETRY_MS, "⏱️ Задержка fallback на ALT baud (мс)", false);
+        // UI_NUMBER("LD2420_ALT_BAUD", LD2420_ALT_BAUD, "🔁 Альтернативный baud", false);
+        // UI_SELECT("LD2420_FORCE_SIMPLE_MODE", LD2420_FORCE_SIMPLE_MODE, (std::initializer_list<UIOption>{{"0", "Нет"}, {"1", "Да"}}), "🧪 Принудительный simple-mode");
+        // UI_SELECT("LD2420_DEBUG_RAW_UART", LD2420_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
+        // UI_DISPLAY("LD2420_LINK_STATUS", LD2420_LINK_STATUS, "📡 Статус связи");
+        // UI_DISPLAY("LD2420_ACTIVE_BAUD_TEXT", LD2420_ACTIVE_BAUD_TEXT, "🧮 Текущий baud");
+        // UI_DISPLAY_BOOL("LD2420_HAS_TARGET", LD2420_HAS_TARGET, "🎯 Наличие цели", "ДА", "НЕТ");
+        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_M", LD2420_DISTANCE_M, "📏 Расстояние (м)");
+        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_CM", LD2420_DISTANCE_CM, "📏 Расстояние (см)");
+        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_MM", LD2420_DISTANCE_MM, "📏 Расстояние (мм)");
+        // UI_DISPLAY_INT("LD2420_SIGNAL_VALUE", LD2420_SIGNAL_VALUE, "📶 Сигнал/энергия");
+        // UI_DISPLAY_INT("LD2420_PRESENCE_BYTE", LD2420_PRESENCE_BYTE, "🧩 Presence byte");
+        // UI_DISPLAY_INT("LD2420_VALID_FRAMES", LD2420_VALID_FRAMES, "✅ Валидные кадры");
+        // UI_DISPLAY_INT("LD2420_INVALID_FRAMES", LD2420_INVALID_FRAMES, "❌ Невалидные кадры");
+        // UI_DISPLAY_INT("LD2420_LAST_FRAME_AT_MS", LD2420_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр (ms)");
+        // UI_DISPLAY_INT("LD2420_LAST_DISTANCE_AGE_MS", LD2420_LAST_DISTANCE_AGE_MS, "⌛ Возраст расстояния (ms)");
+        // UI_DISPLAY("LD2420_LAST_LINE", LD2420_LAST_LINE, "📝 Последняя текстовая строка");
+  
 
 
     // // test: по 1 примеру каждого вида декларативной функции
