@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ui - JeeUI2.h"
-#include "LD2420.h" //#include "HLK-LD2410C.h"
+#include "LD_2420.h" //#include "HLK-LD2410C.h"
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
@@ -103,42 +103,40 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
 
 
 
-    // //⚙️ Все возможное управление и все возможные параметры LD2420
-     UI_PAGE();
-    //  UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
+//⚙️ Все возможное управление и все возможные параметры LD2420
+    UI_PAGE();
+    // UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
     //                 "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
     //                 "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
     //                 "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
 
-   
-    //     UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
-    //     UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
-    //     UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
-    //     UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
+    UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
+    UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
+    UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
+    UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Основной baud (скорость UART, обычно 115200)", false);
+    UI_NUMBER("LD2420_ALT_BAUD", LD2420_ALT_BAUD, "🔁 Альтернативный baud (резервная скорость, если нет связи на основном baud)", false);
+    UI_NUMBER("LD2420_BAUD_RETRY_MS", LD2420_BAUD_RETRY_MS, "⏱️ Через сколько мс пробовать ALT baud, если датчик молчит", false);
+    UI_SELECT("LD2420_PARSE_MODE", LD2420_PARSE_MODE, (std::initializer_list<UIOption>{{"auto", "Авто (binary+text)"},
+                                     {"binary", "Только binary"},
+                                     {"text", "Только text"}}), "🧠 Режим парсинга кадров");
+    UI_SELECT("LD2420_FORCE_SIMPLE_MODE", LD2420_FORCE_SIMPLE_MODE, (std::initializer_list<UIOption>{{"0", "Нет"}, {"1", "Да"}}), "🧪 Принудительный simple-mode");
+    UI_SELECT("LD2420_DEBUG_RAW_UART", LD2420_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
 
+    UI_BUTTON("LD2420_CMD_ENABLE_CONFIG", LD2420_CMD_ENABLE_CONFIG, "gray", "🛠️ LD2420: Войти в CONFIG (режим изменения настроек датчика)");
+    UI_BUTTON("LD2420_CMD_DISABLE_CONFIG", LD2420_CMD_DISABLE_CONFIG, "gray", "✅ LD2420: Выйти из CONFIG (вернуться в обычный режим измерения)");
+    UI_BUTTON("LD2420_CMD_SET_SIMPLE_MODE", LD2420_CMD_SET_SIMPLE_MODE, "gray", "⚙️ LD2420: SIMPLE MODE (упрощённый режим работы)");
+    UI_BUTTON("LD2420_CMD_SET_ENERGY_MODE", LD2420_CMD_SET_ENERGY_MODE, "gray", "⚡ LD2420: ENERGY MODE (энергетический/расширенный режим)");
+    UI_BUTTON("LD2420_CMD_READ_VERSION", LD2420_CMD_READ_VERSION, "gray", "ℹ️ LD2420: Прочитать версию прошивки");
+    UI_BUTTON("LD2420_CMD_REBOOT", LD2420_CMD_REBOOT, "gray", "🔄 LD2420: Перезагрузка датчика");
+    UI_BUTTON("LD2420_CMD_FACTORY_RESET", LD2420_CMD_FACTORY_RESET, "red", "🧨 LD2420: Заводской сброс (стереть настройки)");
 
-
-    
-        // UI_SELECT("LD2420_PARSE_MODE", LD2420_PARSE_MODE, (std::initializer_list<UIOption>{{"auto", "Авто (binary+text)"},
-        //                                  {"binary", "Только binary"},
-        //                                  {"text", "Только text"}}), "🧠 Режим парсинга кадров");
-        // UI_NUMBER("LD2420_BAUD_RETRY_MS", LD2420_BAUD_RETRY_MS, "⏱️ Задержка fallback на ALT baud (мс)", false);
-        // UI_NUMBER("LD2420_ALT_BAUD", LD2420_ALT_BAUD, "🔁 Альтернативный baud", false);
-        // UI_SELECT("LD2420_FORCE_SIMPLE_MODE", LD2420_FORCE_SIMPLE_MODE, (std::initializer_list<UIOption>{{"0", "Нет"}, {"1", "Да"}}), "🧪 Принудительный simple-mode");
-        // UI_SELECT("LD2420_DEBUG_RAW_UART", LD2420_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
-        // UI_DISPLAY("LD2420_LINK_STATUS", LD2420_LINK_STATUS, "📡 Статус связи");
-        // UI_DISPLAY("LD2420_ACTIVE_BAUD_TEXT", LD2420_ACTIVE_BAUD_TEXT, "🧮 Текущий baud");
-        // UI_DISPLAY_BOOL("LD2420_HAS_TARGET", LD2420_HAS_TARGET, "🎯 Наличие цели", "ДА", "НЕТ");
-        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_M", LD2420_DISTANCE_M, "📏 Расстояние (м)");
-        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_CM", LD2420_DISTANCE_CM, "📏 Расстояние (см)");
-        // UI_DISPLAY_FLOAT("LD2420_DISTANCE_MM", LD2420_DISTANCE_MM, "📏 Расстояние (мм)");
-        // UI_DISPLAY_INT("LD2420_SIGNAL_VALUE", LD2420_SIGNAL_VALUE, "📶 Сигнал/энергия");
-        // UI_DISPLAY_INT("LD2420_PRESENCE_BYTE", LD2420_PRESENCE_BYTE, "🧩 Presence byte");
-        // UI_DISPLAY_INT("LD2420_VALID_FRAMES", LD2420_VALID_FRAMES, "✅ Валидные кадры");
-        // UI_DISPLAY_INT("LD2420_INVALID_FRAMES", LD2420_INVALID_FRAMES, "❌ Невалидные кадры");
-        // UI_DISPLAY_INT("LD2420_LAST_FRAME_AT_MS", LD2420_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр (ms)");
-        // UI_DISPLAY_INT("LD2420_LAST_DISTANCE_AGE_MS", LD2420_LAST_DISTANCE_AGE_MS, "⌛ Возраст расстояния (ms)");
-        // UI_DISPLAY("LD2420_LAST_LINE", LD2420_LAST_LINE, "📝 Последняя текстовая строка");
+    UI_DISPLAY("LD2420_LINK_STATUS", LD2420_LINK_STATUS, "📡 Статус связи с датчиком (OK/нет кадров/UART тишина)");
+    UI_DISPLAY("LD2420_ACTIVE_BAUD_TEXT", LD2420_ACTIVE_BAUD_TEXT, "🧮 Текущий baud (на какой скорости сейчас реально работает датчик)");
+    UI_DISPLAY_BOOL("LD2420_HAS_TARGET", LD2420_HAS_TARGET, "🎯 Наличие цели перед датчиком", "ДА", "НЕТ");
+    UI_DISPLAY_FLOAT("LD2420_DISTANCE_M", LD2420_DISTANCE_M, "📏 Расстояние до цели (метры)");
+    UI_DISPLAY_INT("LD2420_VALID_FRAMES", LD2420_VALID_FRAMES, "✅ Валидные кадры (сколько корректных пакетов получено)");
+    UI_DISPLAY_INT("LD2420_LAST_FRAME_AT_MS", LD2420_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр, ms от старта ESP (когда последний раз были корректные данные)");
+    UI_DISPLAY_INT("LD2420_LAST_DISTANCE_AGE_MS", LD2420_LAST_DISTANCE_AGE_MS, "⌛ Возраст текущего расстояния, ms (насколько данные «свежие»)");
   
 
 

@@ -18,7 +18,7 @@
 
 
 #include "LED_WS2815.h"
-#include "LD2420.h" //#include "HLK-LD2410C.h"
+#include "LD_2420.h" //#include "HLK-LD2410C.h"
 
 bool ReadRelayArray[16] = {false}; // Заглушка: Modbus удален, состояния реле всегда неактивны.
 bool ReadInputArray[16] = {false}; // Заглушка: Modbus удален, состояния входов всегда неактивны.
