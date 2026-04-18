@@ -66,11 +66,8 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
-      UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты и LD2420", "⚙️ Настройка работы RGB ленты и LD2420");
-        UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
-        UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
-        UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
-        UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
+      UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты", "⚙️ Настройка работы RGB ленты");
+        
         UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
         UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
         UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
@@ -112,8 +109,16 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     //⚙️ Все возможное управление и все возможные параметры LD2420
     UI_PAGE();
 
+    UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы  LD2420", "⚙️ Настройка работы LD2420");
 
-    
+
+
+        UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
+        UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
+        UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
+        UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
+    UI_POPUP_END();
+
 
     // // test: по 1 примеру каждого вида декларативной функции
     // UI_PAGE();
