@@ -7,6 +7,9 @@
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
     UI_MENU("🌈 Управление RGB подсветкой");
+
+    UI_MENU("⚙️ Все возможное управление и все возможные параметры LD2420");
+
     UI_HIDDEN("ThemeColor", ThemeColor);
 
     // UI_MENU("🧰 test");
@@ -105,6 +108,12 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                     "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
 
 
+
+    //⚙️ Все возможное управление и все возможные параметры LD2420
+    UI_PAGE();
+
+
+    
 
     // // test: по 1 примеру каждого вида декларативной функции
     // UI_PAGE();
