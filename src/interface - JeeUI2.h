@@ -99,10 +99,7 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
         UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
     UI_POPUP_END();
 
-    UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
-                    "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
-                    "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
-                    "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
+
 
 
 
@@ -111,7 +108,10 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
 
     UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы  LD2420", "⚙️ Настройка работы LD2420");
 
-
+    UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
+                    "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
+                    "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
+                    "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
 
         UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
         UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
