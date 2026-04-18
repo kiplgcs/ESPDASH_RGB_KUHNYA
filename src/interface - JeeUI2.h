@@ -63,28 +63,36 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
-    UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ LED_WS2815 HLK-LD2410C");
-        // UI_NUMBER("HLK_LD2410C_RX_PIN", HLK_LD2410C_RX_PIN, "📥 RX-пин ESP32", false);
-        // UI_NUMBER("HLK_LD2410C_TX_PIN", HLK_LD2410C_TX_PIN, "📤 TX-пин ESP32", false);
-        // UI_NUMBER("HLK_LD2410C_BAUD", HLK_LD2410C_BAUD, "🔌 Скорость UART (baud)", false);
-        // UI_NUMBER("HLK_LD2410C_UART_PORT", HLK_LD2410C_UART_PORT, "🧵 UART порт ESP32", false);
-
+      UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C");
         UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
-        UI_NUMBER("KITCHEN_DISTANCE_NEAR_EXIT_M", KITCHEN_DISTANCE_NEAR_EXIT_M, "📏 Выход из ближней зоны (м)", true);
+        UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
         UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
-        UI_NUMBER("KITCHEN_DISTANCE_FAR_EXIT_M", KITCHEN_DISTANCE_FAR_EXIT_M, "📏 Выход из дальней зоны (м)", true);
-
-        UI_NUMBER("KITCHEN_APPROACH_ANIMATION_MS", KITCHEN_APPROACH_ANIMATION_MS, "⏱️ APPROACH анимация (мс)", false);
-        UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Пауза TRANSITION (мс)", false);
-        UI_NUMBER("KITCHEN_AMBIENT_DURATION_MS", KITCHEN_AMBIENT_DURATION_MS, "⏱️ Длительность AMBIENT (мс)", false);
-        UI_NUMBER("KITCHEN_SENSOR_CONFIRM_MS", KITCHEN_SENSOR_CONFIRM_MS, "⏱️ Подтверждение датчика (мс)", false);
-        UI_NUMBER("KITCHEN_SIGNAL_HOLD_MS", KITCHEN_SIGNAL_HOLD_MS, "⏱️ Удержание сигнала (мс)", false);
-        UI_NUMBER("KITCHEN_FADE_IN_MS", KITCHEN_FADE_IN_MS, "🌅 Плавное включение (мс)", false);
-        UI_NUMBER("KITCHEN_FADE_OUT_MS", KITCHEN_FADE_OUT_MS, "🌙 Плавное выключение (мс)", false);
-
+        UI_NUMBER("KITCHEN_FAR_HYSTERESIS_M", KITCHEN_FAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [дальняя зона, 0..1]", true);
+        UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Задержка перехода Ближняя → Дальняя (мс)", false);
+        UI_NUMBER("KITCHEN_LIGHTS_OFF_DELAY_MS", KITCHEN_LIGHTS_OFF_DELAY_MS, "⏱️ Задержка отключения подсветки (мс)", false);
+         UI_NUMBER("KITCHEN_LED_COUNT", KITCHEN_LED_COUNT, "🔢 Количество светодиодов в ленте (1..1000)", false);
+        UI_SELECT("KITCHEN_NEAR_ENTRY_EFFECT", KITCHEN_NEAR_ENTRY_EFFECT, (std::initializer_list<UIOption>{
+            {"edge_white", "Белый от краев к центру"},
+            {"rainbow", "Радуга"},
+            {"pulse", "Пульс"},
+            {"chase", "Шлейф"},
+            {"comet", "Комета"},
+            {"color_wipe", "Цветовая заливка"},
+            {"theater_chase", "Театр"},
+            {"scanner", "Сканер"},
+            {"sparkle", "Искры"},
+            {"twinkle", "Мерцание"},
+            {"confetti", "Конфетти"},
+            {"waves", "Волны"},
+            {"breathe", "Дыхание"},
+            {"firefly", "Светлячки"},
+            {"ripple", "Рябь"},
+            {"dots", "Бегущие точки"},
+            {"gradient", "Градиент"},
+            {"meteor", "Метеоры"},
+            {"juggle", "Жонглирование"},
+            {"aurora", "Северное сияние"}}), "✨ Эффект при переходе Дальняя → Ближняя");
         UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
-        UI_RANGE("KITCHEN_AMBIENT_BRIGHTNESS", KITCHEN_AMBIENT_BRIGHTNESS, 1, 255, 1, "✨ Яркость декоративного света");
-        UI_RANGE("KITCHEN_FILTER_WINDOW", KITCHEN_FILTER_WINDOW, 1, KITCHEN_FILTER_WINDOW_MAX, 1, "🧮 Окно сглаживания дистанции");
     UI_POPUP_END();
 
 

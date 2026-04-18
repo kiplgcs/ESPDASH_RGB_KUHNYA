@@ -8,7 +8,7 @@
 #include <math.h>
 
 #define DATA_PIN 10
-#define NUM_LEDS 180
+#define NUM_LEDS 1000
 
 static NeoPixelBrightnessBus<NeoGrbFeature, Neo800KbpsMethod> ledStrip(NUM_LEDS, DATA_PIN);
 

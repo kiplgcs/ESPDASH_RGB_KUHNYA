@@ -2,8 +2,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <ESPmDNS.h>
-#include <Preferences.h>
-#include <type_traits>
+#include "storage_nvs.h"
 
 struct WifiStatusInfo {
   String statusText;
@@ -15,59 +14,12 @@ struct WifiStatusInfo {
 };
 
 // Persistent storage helpers and Wi-Fi defaults
-inline Preferences prefs;
 inline const char *defaultSSID = "OAB-GeelyM";
 inline const char *defaultPASS = "83913381";
 inline const char *apSSID = "ESP32";
 inline const char *apPASS = "12345678";
 inline const char *defaultHostname = "ESP32";
 
-inline void saveButtonState(const char *key, int val) {
-  prefs.begin("buttons", false);
-  prefs.putInt(key, val);
-  prefs.end();
-}
-
-inline int loadButtonState(const char *key, int def = 0) {
-  prefs.begin("buttons", false);
-  int val = prefs.getInt(key, def);
-  prefs.end();
-  return val;
-}
-
-template <typename T> void saveValue(const char *key, T val);
-// Универсальная функция чтения значения из NVS с автоматической инициализацией
-template <typename T> T loadValue(const char *key, T def) {
-  prefs.begin("MINIDASH", true);
-  T val;
-  if (prefs.isKey(key)) {
-    if constexpr (std::is_same<T, float>::value)
-    val = prefs.getFloat(key, def);   // Сохраняем тип float
-    else if constexpr (std::is_same<T, int>::value)
-      val = prefs.getInt(key, def);     // Сохраняем тип int
-    else if constexpr (std::is_same<T, String>::value)
-      val = prefs.getString(key, def);
-    else
-      val = def;                        // Любой другой тип — возвращаем дефолт
-    prefs.end();
-    return val;
-  }
-  prefs.end();
-  val = def;
-  saveValue<T>(key, val);
-  return val;
-}
-// Универсальная функция сохранения значения в NVS
-template <typename T> void saveValue(const char *key, T val) {
-  prefs.begin("MINIDASH", false);
-  if constexpr (std::is_same<T, float>::value)
-    prefs.putFloat(key, val);
-  else if constexpr (std::is_same<T, int>::value)
-    prefs.putInt(key, val);
-  else if constexpr (std::is_same<T, String>::value)
-    prefs.putString(key, val.c_str());
-  prefs.end();
-}
 
 namespace wifi_internal {
 inline String staSsid;    // SSID внешней сети
