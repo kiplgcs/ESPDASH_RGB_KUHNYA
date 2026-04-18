@@ -2,7 +2,7 @@
 #pragma once
 
 #include "ui - JeeUI2.h"
-#include "HLK-LD2410C.h"
+#include "LD2420.h" //#include "HLK-LD2410C.h"
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
@@ -12,7 +12,7 @@ inline void interface(){ // Декларатиынве функции интер
     // UI_MENU("🧰 test");
 
 
-        // UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ LED_WS2815 HLK-LD2410C"); 
+        // UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты и LD2420", "⚙️ LED_WS2815 LD2420"); 
 
         // UI_POPUP_END();
 
@@ -63,7 +63,11 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
-      UI_POPUP_BEGIN("HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C", "⚙️ Настройка работы RGB ленты и HLK-LD2410C");
+      UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты и LD2420", "⚙️ Настройка работы RGB ленты и LD2420");
+        UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
+        UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
+        UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
+        UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Baud LD2420 (обычно 115200)", false);
         UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
         UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
         UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
@@ -95,7 +99,10 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
         UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
     UI_POPUP_END();
 
-
+    UI_GRAPH_SOURCE("LD2420DistanceGraph", "📡 График расстояния LD2420",
+                    "value:LD2420_DISTANCE_GRAPH_M;updatePeriod_of_Time:60;updateStep:1;maxPoints:80;width:100%;height:240;"
+                    "xLabel:Time;yLabel:Distance (m);pointColor:#6b66ff;lineColor:#43d17a;"
+                    "lineWidth:2;pointRadius:2;smooth:true", LD2420_DISTANCE_GRAPH_M);
 
 
 

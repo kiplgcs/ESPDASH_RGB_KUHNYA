@@ -18,7 +18,7 @@
 
 
 #include "LED_WS2815.h"
-#include "HLK-LD2410C.h"
+#include "LD2420.h" //#include "HLK-LD2410C.h"
 
 bool ReadRelayArray[16] = {false}; // Заглушка: Modbus удален, состояния реле всегда неактивны.
 bool ReadInputArray[16] = {false}; // Заглушка: Modbus удален, состояния входов всегда неактивны.
@@ -131,7 +131,7 @@ void setup() {
 
   new_bright = LedBrightness;
 
-  setup_HLK_LD2410C();
+  setup_LD2420();
 
 
   // ---------- Настройка графиков ----------
@@ -329,7 +329,7 @@ void loop() {
   }
 
 
-  loop_HLK_LD2410C();  
+  loop_LD2420();  
 
 
 
