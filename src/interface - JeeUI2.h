@@ -113,9 +113,7 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     UI_NUMBER("LD2420_RX_PIN", LD2420_RX_PIN, "📥 RX pin ESP32 (данные от датчика TX/OT2)", false);
     UI_NUMBER("LD2420_TX_PIN", LD2420_TX_PIN, "📤 TX pin ESP32 (команды в RX датчика)", false);
     UI_NUMBER("LD2420_UART_PORT", LD2420_UART_PORT, "🔌 UART порт ESP32 (0..2)", false);
-    UI_NUMBER("LD2420_BAUD", LD2420_BAUD, "🧮 Основной baud (скорость UART, обычно 115200)", false);
-    UI_NUMBER("LD2420_ALT_BAUD", LD2420_ALT_BAUD, "🔁 Альтернативный baud (резервная скорость, если нет связи на основном baud)", false);
-    UI_NUMBER("LD2420_BAUD_RETRY_MS", LD2420_BAUD_RETRY_MS, "⏱️ Через сколько мс пробовать ALT baud, если датчик молчит", false);
+    UI_DISPLAY("LD2420_ACTIVE_BAUD_TEXT", LD2420_ACTIVE_BAUD_TEXT, "🧮 Фиксированный baud датчика (115200)");
     UI_SELECT("LD2420_PARSE_MODE", LD2420_PARSE_MODE, (std::initializer_list<UIOption>{{"auto", "Авто (binary+text)"},
                                      {"binary", "Только binary"},
                                      {"text", "Только text"}}), "🧠 Режим парсинга кадров");
@@ -131,7 +129,6 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     UI_BUTTON("LD2420_CMD_FACTORY_RESET", LD2420_CMD_FACTORY_RESET, "red", "🧨 LD2420: Заводской сброс (стереть настройки)");
 
     UI_DISPLAY("LD2420_LINK_STATUS", LD2420_LINK_STATUS, "📡 Статус связи с датчиком (OK/нет кадров/UART тишина)");
-    UI_DISPLAY("LD2420_ACTIVE_BAUD_TEXT", LD2420_ACTIVE_BAUD_TEXT, "🧮 Текущий baud (на какой скорости сейчас реально работает датчик)");
     UI_DISPLAY_BOOL("LD2420_HAS_TARGET", LD2420_HAS_TARGET, "🎯 Наличие цели перед датчиком", "ДА", "НЕТ");
     UI_DISPLAY_FLOAT("LD2420_DISTANCE_M", LD2420_DISTANCE_M, "📏 Расстояние до цели (метры)");
     UI_DISPLAY_INT("LD2420_VALID_FRAMES", LD2420_VALID_FRAMES, "✅ Валидные кадры (сколько корректных пакетов получено)");
