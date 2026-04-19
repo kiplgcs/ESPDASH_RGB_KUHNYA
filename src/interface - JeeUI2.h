@@ -7,9 +7,11 @@
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
+    UI_MENU("⚙️ Настройка WS2815 по датчикам объема");
+
     UI_MENU("🌈 Управление RGB подсветкой");
 
-    UI_MENU("⚙️ Все возможное управление и все возможные параметры LD2420");
+        UI_MENU("⚙️ Все возможное управление и все возможные параметры LD2420");
 
     UI_MENU("⚙️ Все возможное управление и все возможные параметры HLK-LD2410C");
     
@@ -21,6 +23,10 @@ inline void interface(){ // Декларатиынве функции интер
         // UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты и LD2420", "⚙️ LED_WS2815 LD2420"); 
 
         // UI_POPUP_END();
+
+// ⚙️ Настройка WS2815 по датчикам объема
+    UI_PAGE();
+
 
 // Управление RGB подсветкой
     UI_PAGE();
@@ -70,38 +76,40 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
 
-    //   UI_POPUP_BEGIN("LD2420", "⚙️ Настройка работы RGB ленты", "⚙️ Настройка работы RGB ленты");
-        
-    //     UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
-    //     UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
-    //     UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
-    //     UI_NUMBER("KITCHEN_FAR_HYSTERESIS_M", KITCHEN_FAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [дальняя зона, 0..1]", true);
-    //     UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Задержка перехода Ближняя → Дальняя (мс)", false);
-    //     UI_NUMBER("KITCHEN_LIGHTS_OFF_DELAY_MS", KITCHEN_LIGHTS_OFF_DELAY_MS, "⏱️ Задержка отключения подсветки (мс)", false);
-    //      UI_NUMBER("KITCHEN_LED_COUNT", KITCHEN_LED_COUNT, "🔢 Количество светодиодов в ленте (1..1000)", false);
-    //     UI_SELECT("KITCHEN_NEAR_ENTRY_EFFECT", KITCHEN_NEAR_ENTRY_EFFECT, (std::initializer_list<UIOption>{
-    //         {"edge_white", "Белый от краев к центру"},
-    //         {"rainbow", "Радуга"},
-    //         {"pulse", "Пульс"},
-    //         {"chase", "Шлейф"},
-    //         {"comet", "Комета"},
-    //         {"color_wipe", "Цветовая заливка"},
-    //         {"theater_chase", "Театр"},
-    //         {"scanner", "Сканер"},
-    //         {"sparkle", "Искры"},
-    //         {"twinkle", "Мерцание"},
-    //         {"confetti", "Конфетти"},
-    //         {"waves", "Волны"},
-    //         {"breathe", "Дыхание"},
-    //         {"firefly", "Светлячки"},
-    //         {"ripple", "Рябь"},
-    //         {"dots", "Бегущие точки"},
-    //         {"gradient", "Градиент"},
-    //         {"meteor", "Метеоры"},
-    //         {"juggle", "Жонглирование"},
-    //         {"aurora", "Северное сияние"}}), "✨ Эффект при переходе Дальняя → Ближняя");
-    //     UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
-    // UI_POPUP_END();
+
+    //⚙️ Настройка WS2815 по датчикам объема
+    UI_PAGE();
+
+        // UI_NUMBER("KITCHEN_DISTANCE_NEAR_ENTER_M", KITCHEN_DISTANCE_NEAR_ENTER_M, "📏 Вход в ближнюю зону (м)", true);
+        // UI_NUMBER("KITCHEN_NEAR_HYSTERESIS_M", KITCHEN_NEAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [ближняя зона, 0..1]", true);
+        // UI_NUMBER("KITCHEN_DISTANCE_FAR_ENTER_M", KITCHEN_DISTANCE_FAR_ENTER_M, "📏 Вход в дальнюю зону (м)", true);
+        // UI_NUMBER("KITCHEN_FAR_HYSTERESIS_M", KITCHEN_FAR_HYSTERESIS_M, "↕️ Гистерезис входа-выхода (м) [дальняя зона, 0..1]", true);
+        // UI_NUMBER("KITCHEN_TRANSITION_WAIT_MS", KITCHEN_TRANSITION_WAIT_MS, "⏱️ Задержка перехода Ближняя → Дальняя (мс)", false);
+        // UI_NUMBER("KITCHEN_LIGHTS_OFF_DELAY_MS", KITCHEN_LIGHTS_OFF_DELAY_MS, "⏱️ Задержка отключения подсветки (мс)", false);
+        //  UI_NUMBER("KITCHEN_LED_COUNT", KITCHEN_LED_COUNT, "🔢 Количество светодиодов в ленте (1..1000)", false);
+        // UI_SELECT("KITCHEN_NEAR_ENTRY_EFFECT", KITCHEN_NEAR_ENTRY_EFFECT, (std::initializer_list<UIOption>{
+        //     {"edge_white", "Белый от краев к центру"},
+        //     {"rainbow", "Радуга"},
+        //     {"pulse", "Пульс"},
+        //     {"chase", "Шлейф"},
+        //     {"comet", "Комета"},
+        //     {"color_wipe", "Цветовая заливка"},
+        //     {"theater_chase", "Театр"},
+        //     {"scanner", "Сканер"},
+        //     {"sparkle", "Искры"},
+        //     {"twinkle", "Мерцание"},
+        //     {"confetti", "Конфетти"},
+        //     {"waves", "Волны"},
+        //     {"breathe", "Дыхание"},
+        //     {"firefly", "Светлячки"},
+        //     {"ripple", "Рябь"},
+        //     {"dots", "Бегущие точки"},
+        //     {"gradient", "Градиент"},
+        //     {"meteor", "Метеоры"},
+        //     {"juggle", "Жонглирование"},
+        //     {"aurora", "Северное сияние"}}), "✨ Эффект при переходе Дальняя → Ближняя");
+        // UI_RANGE("KITCHEN_WORK_WHITE_BRIGHTNESS", KITCHEN_WORK_WHITE_BRIGHTNESS, 1, 255, 1, "💡 Яркость рабочего света");
+  
 
 
 
