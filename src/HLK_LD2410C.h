@@ -6,7 +6,7 @@
 // ------------------------------ НАСТРОЙКИ ПОДКЛЮЧЕНИЯ HLK-LD2410C ------------------------------
 inline int HLK_LD2410C_RX_PIN = 18; // Отдельный RX-пин ESP32-S для датчика HLK-LD2410C.
 inline int HLK_LD2410C_TX_PIN = 15; // Отдельный TX-пин ESP32-S для датчика HLK-LD2410C.
-inline uint8_t HLK_LD2410C_UART_PORT = 1; // Отдельный UART-порт ESP32-S (0..2).
+inline uint8_t HLK_LD2410C_UART_PORT = 2; // Отдельный UART-порт ESP32-S (0..2), чтобы датчик не конфликтовал с LD2420.
 inline uint32_t HLK_LD2410C_BAUD = 256000UL; // Штатная скорость HLK-LD2410C.
 
 // ------------------------------ НАСТРОЙКИ ОБРАБОТКИ ДАННЫХ ------------------------------
@@ -59,6 +59,7 @@ static int gHlkLd2410cAppliedRxPin = -1;
 static int gHlkLd2410cAppliedTxPin = -1;
 static uint8_t gHlkLd2410cAppliedUartPort = 255;
 static uint32_t gHlkLd2410cAppliedBaud = 0;
+inline int HLK_LD2410C_MAX_FRAMES_PER_LOOP = 6; // Сколько валидных кадров максимум обрабатываем за один проход loop для ускорения опроса.
 
 static inline void hlkLd2410cWriteFrame(const uint8_t *data, size_t len) {
   if (!gHlkLd2410cSerial || !data || len == 0) { return; }
@@ -325,8 +326,10 @@ static inline void loop_HLK_LD2410C() {
   hlkLd2410cApplyRuntimeUartConfigIfChanged();
   hlkLd2410cHandleUserCommands();
 
-  HlkLd2410cReading reading = hlkLd2410cReadFrame();
-  if (reading.frameValid) {
+  const int maxFrames = constrain(HLK_LD2410C_MAX_FRAMES_PER_LOOP, 1, 20); // Ограничиваем верхний предел, чтобы не зациклить loop на шумном UART.
+  for (int i = 0; i < maxFrames; ++i) { // Обрабатываем несколько кадров за один проход для ускорения актуализации значений.
+    HlkLd2410cReading reading = hlkLd2410cReadFrame();
+    if (!reading.frameValid) { break; } // Как только новых кадров нет, выходим из цикла.
     HLK_LD2410C_VALID_FRAMES++;
     HLK_LD2410C_LAST_FRAME_AT_MS = static_cast<int>(now);
     HLK_LD2410C_LINK_STATUS = "Связь OK";

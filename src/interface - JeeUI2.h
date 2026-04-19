@@ -24,6 +24,7 @@ inline void interface(){ // Декларатиынве функции интер
 
 // Управление RGB подсветкой
     UI_PAGE();
+    UI_DISPLAY("RadarCompactLine", RadarCompactLine, "📡 Дистанция датчиков (одна строка)");
     UI_BUTTON_DEFAULT("button_WS2815", Pow_WS2815, "gray", "🌈 Включить / Отключить : RGB ленту WS2815", 1);
     UI_CHECKBOX("WS2815_Time1", WS2815_Time1, "⏲️ Таймер RGB ленты"); //Галочка - активания/деактивация таймера
     UI_SELECT_CB("SetRGB", SetRGB, (std::initializer_list<UIOption>{{"off", "RGB подсветка отключена постоянно"},
@@ -122,6 +123,7 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
                                      {"text", "Только text"}}), "🧠 Режим парсинга кадров");
     UI_SELECT("LD2420_FORCE_SIMPLE_MODE", LD2420_FORCE_SIMPLE_MODE, (std::initializer_list<UIOption>{{"0", "Нет"}, {"1", "Да"}}), "🧪 Принудительный simple-mode");
     UI_SELECT("LD2420_DEBUG_RAW_UART", LD2420_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
+    UI_NUMBER("LD2420_MAX_FRAMES_PER_LOOP", LD2420_MAX_FRAMES_PER_LOOP, "⚡ Лимит кадров за 1 loop (быстрее опрос)", false);
 
     UI_BUTTON("LD2420_CMD_ENABLE_CONFIG", LD2420_CMD_ENABLE_CONFIG, "gray", "🛠️ LD2420: Войти в CONFIG (режим изменения настроек датчика)");
     UI_BUTTON("LD2420_CMD_DISABLE_CONFIG", LD2420_CMD_DISABLE_CONFIG, "gray", "✅ LD2420: Выйти из CONFIG (вернуться в обычный режим измерения)");
@@ -151,6 +153,7 @@ UI_PAGE();
     UI_SELECT("HLK_LD2410C_DEBUG_RAW_UART", HLK_LD2410C_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
     UI_NUMBER("HLK_LD2410C_FILTER_ALPHA", HLK_LD2410C_FILTER_ALPHA, "🧽 EMA фильтр расстояния (0.05..0.95)", true);
     UI_NUMBER("HLK_LD2410C_DISTANCE_JUMP_REJECT_M", HLK_LD2410C_DISTANCE_JUMP_REJECT_M, "🪜 Ограничение скачка расстояния (м)", true);
+    UI_NUMBER("HLK_LD2410C_MAX_FRAMES_PER_LOOP", HLK_LD2410C_MAX_FRAMES_PER_LOOP, "⚡ Лимит кадров за 1 loop (быстрее опрос)", false);
 
     UI_BUTTON("HLK_LD2410C_CMD_ENABLE_CONFIG", HLK_LD2410C_CMD_ENABLE_CONFIG, "gray", "🛠️ HLK-LD2410C: Войти в CONFIG");
     UI_BUTTON("HLK_LD2410C_CMD_DISABLE_CONFIG", HLK_LD2410C_CMD_DISABLE_CONFIG, "gray", "✅ HLK-LD2410C: Выйти из CONFIG");
@@ -172,6 +175,9 @@ UI_PAGE();
     UI_DISPLAY_INT("HLK_LD2410C_LAST_FRAME_AT_MS", HLK_LD2410C_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр, ms от старта ESP");
     UI_DISPLAY_INT("HLK_LD2410C_LAST_DISTANCE_AGE_MS", HLK_LD2410C_LAST_DISTANCE_AGE_MS, "⌛ Возраст текущего расстояния, ms");
     UI_DISPLAY("HLK_LD2410C_LAST_LINE", HLK_LD2410C_LAST_LINE, "🧾 Последняя текстовая строка от датчика");
+    UI_DISPLAY_FLOAT("RadarAverageDistanceM", RadarAverageDistanceM, "📐 Средняя дистанция LD2420 + HLK-LD2410C (м)");
+    UI_DISPLAY_INT("RadarAverageValidSensors", RadarAverageValidSensors, "🧮 Сколько датчиков участвует в среднем (0..2)");
+    UI_DISPLAY_INT("RadarAverageAgeMs", RadarAverageAgeMs, "⌛ Возраст усредненного значения, ms");
 
 
 
