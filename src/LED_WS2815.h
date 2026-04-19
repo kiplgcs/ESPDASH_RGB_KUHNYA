@@ -426,7 +426,7 @@ void loop_WS2815(){
         scheduleNextPattern();
     }
 
-    if(now - ledLastUpdate < 40){
+    if(now - ledLastUpdate < 20){
         return;
     }
 

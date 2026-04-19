@@ -6,9 +6,7 @@
 #include "LED_WS2815.h"
 
 inline float KITCHEN_DISTANCE_NEAR_ENTER_M = 1.20f; // Порог входа в ближнюю зону (м).
-inline float KITCHEN_NEAR_HYSTERESIS_M = 0.15f; // Гистерезис ближней зоны (м).
 inline float KITCHEN_DISTANCE_FAR_ENTER_M = 3.00f; // Порог входа в дальнюю зону (м).
-inline float KITCHEN_FAR_HYSTERESIS_M = 0.25f; // Гистерезис дальней зоны (м).
 inline uint32_t KITCHEN_TRANSITION_WAIT_MS = 1200; // Задержка перехода Ближняя -> Дальняя (мс).
 inline uint32_t KITCHEN_LIGHTS_OFF_DELAY_MS = 7000; // Задержка полного выключения ленты после выхода из дальней зоны (мс).
 inline int KITCHEN_LED_COUNT = NUM_LEDS; // Число светодиодов ленты для UI (справочный параметр).
@@ -71,22 +69,8 @@ static inline Zone resolveZone(float distanceM) {
   }
 
   const float nearEnter = max(0.5f, KITCHEN_DISTANCE_NEAR_ENTER_M);
-  const float nearExit = nearEnter + constrain(KITCHEN_NEAR_HYSTERESIS_M, 0.0f, 1.0f);
   const float farEnter = max(nearEnter, KITCHEN_DISTANCE_FAR_ENTER_M);
-  const float farExit = farEnter + constrain(KITCHEN_FAR_HYSTERESIS_M, 0.0f, 1.0f);
-
-  if (gZone == ZoneNear) {
-    if (distanceM <= nearExit) return ZoneNear;
-    if (distanceM <= farEnter) return ZoneFar;
-    return ZoneNone;
-  }
-
-  if (gZone == ZoneFar) {
-    if (distanceM <= nearEnter) return ZoneNear;
-    if (distanceM <= farExit) return ZoneFar;
-    return ZoneNone;
-  }
-
+  
   if (distanceM <= nearEnter) return ZoneNear;
   if (distanceM <= farEnter) return ZoneFar;
   return ZoneNone;
@@ -186,9 +170,8 @@ inline void loop() {
     gFarExitPending = false;
     gNearToFarPending = false;
 
-    if (gZone == ZoneFar) {
-      startNearEntryEffect();
-    } else if (gZone == ZoneNone) {
+    if (gZone == ZoneFar || gZone == ZoneNone) {
+      gNearEntryEffectRunning = false;
       Pow_WS2815 = true;
       fillWhiteWorkLight();
     }

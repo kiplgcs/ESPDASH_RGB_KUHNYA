@@ -19,8 +19,7 @@
 
 #include "LED_WS2815.h"
 #include "LED_WS2815_sensor.h"
-#include "LD_2420.h" //#include "HLK-LD2410C.h"
-#include "HLK_LD2410C.h"
+#include "LD_2420.h"
 
 bool ReadRelayArray[16] = {false}; // Заглушка: Modbus удален, состояния реле всегда неактивны.
 bool ReadInputArray[16] = {false}; // Заглушка: Modbus удален, состояния входов всегда неактивны.
@@ -137,7 +136,7 @@ void setup() {
   setup_LED_WS2815_sensor();
 
   setup_LD2420();
-  setup_HLK_LD2410C();
+
 
 
   // ---------- Настройка графиков ----------
@@ -336,28 +335,20 @@ void loop() {
 
 
   loop_LD2420();
-  loop_HLK_LD2410C();
-
-  const uint32_t nowMs = millis(); // Время для оценки «свежести» кадров двух радаров.
+  const uint32_t nowMs = millis(); // Время для оценки «свежести» кадров LD2420.
   const bool ldFresh = (LD2420_LAST_FRAME_AT_MS > 0) && ((nowMs - static_cast<uint32_t>(LD2420_LAST_FRAME_AT_MS)) <= 1500UL); // Учитываем только свежие данные LD2420.
-  const bool hlkFresh = (HLK_LD2410C_LAST_FRAME_AT_MS > 0) && ((nowMs - static_cast<uint32_t>(HLK_LD2410C_LAST_FRAME_AT_MS)) <= 1500UL); // Учитываем только свежие данные HLK-LD2410C.
-  float avgSum = 0.0f; // Накопитель суммы дистанций участвующих датчиков.
-  int avgCount = 0; // Счетчик датчиков, вошедших в среднее значение.
-  if (ldFresh && LD2420_DISTANCE_M > 0.01f) { avgSum += LD2420_DISTANCE_M; avgCount++; } // Добавляем LD2420 в среднее только при валидных свежих данных.
-  if (hlkFresh && HLK_LD2410C_DISTANCE_M > 0.01f) { avgSum += HLK_LD2410C_DISTANCE_M; avgCount++; } // Добавляем HLK-LD2410C в среднее только при валидных свежих данных.
-  RadarAverageValidSensors = avgCount; // Публикуем количество датчиков, участвующих в среднем.
-  if (avgCount > 0) { // Если есть хотя бы один валидный источник, обновляем среднее значение.
-    RadarAverageDistanceM = avgSum / static_cast<float>(avgCount); // Получаем среднюю дистанцию в метрах.
-    if (ldFresh && hlkFresh) { RadarAverageAgeMs = min(LD2420_LAST_DISTANCE_AGE_MS, HLK_LD2410C_LAST_DISTANCE_AGE_MS); } // Когда валидны оба датчика, берем более свежее из двух.
-    else if (ldFresh) { RadarAverageAgeMs = LD2420_LAST_DISTANCE_AGE_MS; } // Когда валиден только LD2420, возраст среднего равен его возрасту.
-    else { RadarAverageAgeMs = HLK_LD2410C_LAST_DISTANCE_AGE_MS; } // Когда валиден только HLK, возраст среднего равен его возрасту.
-  } else { // Если свежих валидных данных нет, показываем отсутствие среднего.
-    RadarAverageDistanceM = 0.0f; // Сбрасываем среднюю дистанцию.
-    RadarAverageAgeMs = 0; // Сбрасываем возраст среднего.
+  if (ldFresh && LD2420_DISTANCE_M > 0.01f) {
+    RadarAverageValidSensors = 1;
+    RadarAverageDistanceM = LD2420_DISTANCE_M;
+    RadarAverageAgeMs = LD2420_LAST_DISTANCE_AGE_MS;
+  } else {
+    RadarAverageValidSensors = 0;
+    RadarAverageDistanceM = 0.0f;
+    RadarAverageAgeMs = 0;
   }
-  RadarCompactLine = "📐 Ср. LD2420 + HLK-LD2410C: " + String(RadarAverageDistanceM, 2) + " м"
-                   + "  •  📏 LD2420: " + String(LD2420_DISTANCE_M, 2) + " м"
-                   + "  •  📏 HLK-LD2410C: " + String(HLK_LD2410C_DISTANCE_M, 2) + " м"; // Формируем одну красивую строку, которая не перекрывает остальные элементы UI.
+    RadarCompactLine = "📏 LD2420: " + String(LD2420_DISTANCE_M, 2) + " м"
+                   + "  •  🎯 Цель: " + String(LD2420_HAS_TARGET ? "ДА" : "НЕТ")
+                   + "  •  ⌛ Age: " + String(LD2420_LAST_DISTANCE_AGE_MS) + " ms";
 
   loop_LED_WS2815_sensor();
   loop_WS2815();
