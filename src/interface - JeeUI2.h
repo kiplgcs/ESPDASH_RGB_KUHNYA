@@ -3,6 +3,7 @@
 
 #include "ui - JeeUI2.h"
 #include "LD_2420.h" //#include "HLK-LD2410C.h"
+#include "HLK_LD2410C.h"
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
@@ -10,6 +11,8 @@ inline void interface(){ // Декларатиынве функции интер
 
     UI_MENU("⚙️ Все возможное управление и все возможные параметры LD2420");
 
+    UI_MENU("⚙️ Все возможное управление и все возможные параметры HLK-LD2410C");
+    
     UI_HIDDEN("ThemeColor", ThemeColor);
 
     // UI_MENU("🧰 test");
@@ -135,6 +138,41 @@ UI_COLOR("LEDColor", LEDColor, "🎨 Цвет подсветки");
     UI_DISPLAY_INT("LD2420_LAST_FRAME_AT_MS", LD2420_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр, ms от старта ESP (когда последний раз были корректные данные)");
     UI_DISPLAY_INT("LD2420_LAST_DISTANCE_AGE_MS", LD2420_LAST_DISTANCE_AGE_MS, "⌛ Возраст текущего расстояния, ms (насколько данные «свежие»)");
   
+//⚙️ Все возможное управление и все возможные параметры HLK-LD2410C
+UI_PAGE();
+
+    UI_NUMBER("HLK_LD2410C_RX_PIN", HLK_LD2410C_RX_PIN, "📥 RX pin ESP32-S (отдельно от других датчиков)", false);
+    UI_NUMBER("HLK_LD2410C_TX_PIN", HLK_LD2410C_TX_PIN, "📤 TX pin ESP32-S (отдельно от других датчиков)", false);
+    UI_NUMBER("HLK_LD2410C_UART_PORT", HLK_LD2410C_UART_PORT, "🔌 UART порт ESP32-S (отдельный, 0..2)", false);
+    UI_NUMBER("HLK_LD2410C_BAUD", HLK_LD2410C_BAUD, "🧮 Скорость UART HLK-LD2410C (по умолчанию 256000)", false);
+    UI_SELECT("HLK_LD2410C_PARSE_MODE", HLK_LD2410C_PARSE_MODE, (std::initializer_list<UIOption>{{"auto", "Авто (binary+text)"},
+                                     {"binary", "Только binary"},
+                                     {"text", "Только text"}}), "🧠 Режим парсинга кадров");
+    UI_SELECT("HLK_LD2410C_DEBUG_RAW_UART", HLK_LD2410C_DEBUG_RAW_UART, (std::initializer_list<UIOption>{{"0", "Выключено"}, {"1", "Включено"}}), "🧾 Сырые байты в Serial");
+    UI_NUMBER("HLK_LD2410C_FILTER_ALPHA", HLK_LD2410C_FILTER_ALPHA, "🧽 EMA фильтр расстояния (0.05..0.95)", true);
+    UI_NUMBER("HLK_LD2410C_DISTANCE_JUMP_REJECT_M", HLK_LD2410C_DISTANCE_JUMP_REJECT_M, "🪜 Ограничение скачка расстояния (м)", true);
+
+    UI_BUTTON("HLK_LD2410C_CMD_ENABLE_CONFIG", HLK_LD2410C_CMD_ENABLE_CONFIG, "gray", "🛠️ HLK-LD2410C: Войти в CONFIG");
+    UI_BUTTON("HLK_LD2410C_CMD_DISABLE_CONFIG", HLK_LD2410C_CMD_DISABLE_CONFIG, "gray", "✅ HLK-LD2410C: Выйти из CONFIG");
+    UI_BUTTON("HLK_LD2410C_CMD_REQUEST_PARAMS", HLK_LD2410C_CMD_REQUEST_PARAMS, "gray", "📥 HLK-LD2410C: Прочитать параметры датчика");
+    UI_BUTTON("HLK_LD2410C_CMD_READ_VERSION", HLK_LD2410C_CMD_READ_VERSION, "gray", "ℹ️ HLK-LD2410C: Прочитать версию прошивки");
+    UI_BUTTON("HLK_LD2410C_CMD_REBOOT", HLK_LD2410C_CMD_REBOOT, "gray", "🔄 HLK-LD2410C: Перезагрузка датчика");
+    UI_BUTTON("HLK_LD2410C_CMD_FACTORY_RESET", HLK_LD2410C_CMD_FACTORY_RESET, "red", "🧨 HLK-LD2410C: Заводской сброс");
+
+    UI_DISPLAY("HLK_LD2410C_LINK_STATUS", HLK_LD2410C_LINK_STATUS, "📡 Статус связи с датчиком (OK/нет кадров/UART тишина)");
+    UI_DISPLAY_BOOL("HLK_LD2410C_HAS_TARGET", HLK_LD2410C_HAS_TARGET, "🎯 Наличие цели перед датчиком", "ДА", "НЕТ");
+    UI_DISPLAY_FLOAT("HLK_LD2410C_DISTANCE_M", HLK_LD2410C_DISTANCE_M, "📏 Расстояние до цели (метры)");
+    UI_DISPLAY_FLOAT("HLK_LD2410C_DISTANCE_CM", HLK_LD2410C_DISTANCE_CM, "📐 Расстояние до цели (сантиметры)");
+    UI_DISPLAY_INT("HLK_LD2410C_MOVING_DISTANCE_CM", HLK_LD2410C_MOVING_DISTANCE_CM, "🏃 Дистанция движущейся цели (см)");
+    UI_DISPLAY_INT("HLK_LD2410C_STILL_DISTANCE_CM", HLK_LD2410C_STILL_DISTANCE_CM, "🧍 Дистанция статичной цели (см)");
+    UI_DISPLAY_INT("HLK_LD2410C_DETECT_DISTANCE_CM", HLK_LD2410C_DETECT_DISTANCE_CM, "📡 Общая дистанция обнаружения (см)");
+    UI_DISPLAY_INT("HLK_LD2410C_TARGET_STATE", HLK_LD2410C_TARGET_STATE, "🧩 Target state (0=нет, 1/2/3=обнаружено)");
+    UI_DISPLAY_INT("HLK_LD2410C_VALID_FRAMES", HLK_LD2410C_VALID_FRAMES, "✅ Валидные кадры");
+    UI_DISPLAY_INT("HLK_LD2410C_INVALID_FRAMES", HLK_LD2410C_INVALID_FRAMES, "❌ Невалидные кадры");
+    UI_DISPLAY_INT("HLK_LD2410C_LAST_FRAME_AT_MS", HLK_LD2410C_LAST_FRAME_AT_MS, "🕒 Последний валидный кадр, ms от старта ESP");
+    UI_DISPLAY_INT("HLK_LD2410C_LAST_DISTANCE_AGE_MS", HLK_LD2410C_LAST_DISTANCE_AGE_MS, "⌛ Возраст текущего расстояния, ms");
+    UI_DISPLAY("HLK_LD2410C_LAST_LINE", HLK_LD2410C_LAST_LINE, "🧾 Последняя текстовая строка от датчика");
+
 
 
     // // test: по 1 примеру каждого вида декларативной функции
