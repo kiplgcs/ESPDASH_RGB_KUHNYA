@@ -18,6 +18,7 @@
 
 
 #include "LED_WS2815.h"
+#include "LED_WS2815_sensor.h"
 #include "LD_2420.h" //#include "HLK-LD2410C.h"
 #include "HLK_LD2410C.h"
 
@@ -131,6 +132,9 @@ void setup() {
   if(LedAutoplayDuration < 1) LedAutoplayDuration = 1;
 
   new_bright = LedBrightness;
+
+  setup_WS2815();
+  setup_LED_WS2815_sensor();
 
   setup_LD2420();
   setup_HLK_LD2410C();
@@ -355,5 +359,7 @@ void loop() {
                    + "  •  📏 LD2420: " + String(LD2420_DISTANCE_M, 2) + " м"
                    + "  •  📏 HLK-LD2410C: " + String(HLK_LD2410C_DISTANCE_M, 2) + " м"; // Формируем одну красивую строку, которая не перекрывает остальные элементы UI.
 
+  loop_LED_WS2815_sensor();
+  loop_WS2815();
 
 }
