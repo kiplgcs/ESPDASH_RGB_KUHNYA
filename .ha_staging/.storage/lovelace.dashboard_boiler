@@ -1,0 +1,423 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace.dashboard_boiler",
+  "data": {
+    "config": {
+      "views": [
+        {
+          "title": "Бойлер_ESP32-S3",
+          "path": "controller",
+          "icon": "mdi:water-boiler",
+          "show_icon_and_title": true,
+          "type": "panel",
+          "cards": [
+            {
+              "type": "custom:hass-ingress-card",
+              "panel": "boiler_local"
+            }
+          ]
+        },
+        {
+          "title": "Управление отбором солнечной мощности Бойлером / Бассейном",
+          "path": "mqtt",
+          "icon": "mdi:mqtt",
+          "show_icon_and_title": true,
+          "type": "sections",
+          "max_columns": 3,
+          "dense_section_placement": true,
+          "sections": [
+            {
+              "type": "grid",
+              "column_span": 3,
+              "cards": [
+                {
+                  "type": "custom:anenji-heating-power-flow-card",
+                  "grid_options": {
+                    "columns": "full",
+                    "rows": "auto"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(255,193,7,.18), rgba(3,169,244,.08)); border: 1px solid rgba(255,193,7,.36); border-radius: 20px; box-shadow: 0 10px 28px rgba(0,0,0,.18); overflow: hidden; }"
+                  }
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Время работы бойлера",
+                  "icon": "mdi:water-boiler",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "markdown",
+                  "content": "Выберите основу для начала и конца: ручное время, восход или закат. Сдвиг: **−** раньше, **+** позже. Ручное время не использует сдвиг.",
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(255,152,0,.14), rgba(255,193,7,.05)); border: 1px solid rgba(255,167,38,.30); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "title": "Окно нагрева бойлера",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(255,152,0,.24), rgba(255,193,7,.07)); border: 1px solid rgba(255,167,38,.46); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "input_select.anenji_surplus_boiler_start_reference",
+                      "name": "Начало · ручное время / восход / закат"
+                    },
+                    {
+                      "entity": "input_datetime.anenji_surplus_boiler_start_time",
+                      "name": "Ручное начало"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_boiler_start_solar_offset_min",
+                      "name": "Сдвиг начала от солнца"
+                    },
+                    {
+                      "entity": "input_select.anenji_surplus_boiler_end_reference",
+                      "name": "Окончание · ручное время / восход / закат"
+                    },
+                    {
+                      "entity": "input_datetime.anenji_surplus_boiler_end_time",
+                      "name": "Ручное окончание"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_boiler_end_solar_offset_min",
+                      "name": "Сдвиг окончания от солнца"
+                    },
+                    {
+                      "entity": "binary_sensor.anenji_okno_nagreva_boilera",
+                      "name": "Сейчас нагрев бойлера разрешён"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Время работы бассейна",
+                  "icon": "mdi:pool",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "markdown",
+                  "content": "У бассейна своё независимое окно. При одновременном разрешении и запросе бойлер остаётся первым в очереди.",
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(0,188,212,.14), rgba(33,150,243,.05)); border: 1px solid rgba(0,188,212,.28); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "title": "Окно нагрева бассейна",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(0,188,212,.22), rgba(33,150,243,.08)); border: 1px solid rgba(0,188,212,.42); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "input_select.anenji_surplus_pool_start_reference",
+                      "name": "Начало · ручное время / восход / закат"
+                    },
+                    {
+                      "entity": "input_datetime.anenji_surplus_pool_start_time",
+                      "name": "Ручное начало"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_pool_start_solar_offset_min",
+                      "name": "Сдвиг начала от солнца"
+                    },
+                    {
+                      "entity": "input_select.anenji_surplus_pool_end_reference",
+                      "name": "Окончание · ручное время / восход / закат"
+                    },
+                    {
+                      "entity": "input_datetime.anenji_surplus_pool_end_time",
+                      "name": "Ручное окончание"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_pool_end_solar_offset_min",
+                      "name": "Сдвиг окончания от солнца"
+                    },
+                    {
+                      "entity": "binary_sensor.anenji_okno_nagreva_basseina",
+                      "name": "Сейчас нагрев бассейна разрешён"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Солнце и погодные ограничения",
+                  "icon": "mdi:weather-partly-cloudy",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "markdown",
+                  "content": "🌅 **Восход:** {{ states('input_datetime.anenji_surplus_sunrise_today')[11:16] }}  ·  🌇 **Закат:** {{ states('input_datetime.anenji_surplus_sunset_today')[11:16] }}",
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(255,193,7,.16), rgba(103,58,183,.07)); border: 1px solid rgba(255,193,7,.32); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "tile",
+                  "entity": "sun.sun",
+                  "name": "Солнце над горизонтом",
+                  "icon": "mdi:white-balance-sunny",
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(255,193,7,.22), rgba(255,152,0,.07)); border: 1px solid rgba(255,193,7,.40); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "tile",
+                  "entity": "sensor.moshchnost_pv_pv_power",
+                  "name": "Измеренная мощность солнечных панелей",
+                  "icon": "mdi:solar-power",
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(76,175,80,.20), rgba(0,188,212,.07)); border: 1px solid rgba(76,175,80,.36); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "title": "Когда лимиты должны быть нулевыми",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(156,39,176,.17), rgba(255,193,7,.06)); border: 1px solid rgba(171,71,188,.36); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "input_boolean.anenji_surplus_block_when_rain",
+                      "name": "Останавливать при дожде"
+                    },
+                    {
+                      "entity": "input_boolean.anenji_surplus_block_when_snow",
+                      "name": "Останавливать при снегопаде"
+                    },
+                    {
+                      "entity": "input_boolean.anenji_surplus_block_when_other_bad_weather",
+                      "name": "Останавливать при тумане, грозе или плотной облачности"
+                    },
+                    {
+                      "entity": "weather.openweathermap",
+                      "name": "Текущая погода OpenWeather"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Настройки регулятора",
+                  "icon": "mdi:tune-variant",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "entities",
+                  "title": "Управление и приоритет",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(63,81,181,.20), rgba(33,150,243,.07)); border: 1px solid rgba(92,107,192,.40); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "input_boolean.anenji_surplus_distribution_enabled",
+                      "name": "Автоматическое распределение"
+                    },
+                    {
+                      "entity": "input_select.anenji_surplus_forced_output_mode",
+                      "name": "Принудительный режим нагрева · SUB / SOL"
+                    },
+                    {
+                      "entity": "sensor.prioritet_vykhoda_output_priority",
+                      "name": "Program 01 · фактически (1 SOL / 3 SUB)"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_grid_import_allowance_w",
+                      "name": "Допустимый импорт ТНС ⓘ",
+                      "card_mod": {
+                        "style": ":host { position: relative; } :host:hover::after { content: 'Сколько Ват разрешено кратковременно взять из внешней сети ТНС во время подбора мощности. Если импорт станет больше этого числа, лимит нагрева сразу уменьшается на величину превышения.'; position: absolute; z-index: 100; left: 0; top: calc(100% + 4px); width: 350px; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 13px; line-height: 1.35; white-space: normal; box-shadow: var(--ha-card-box-shadow); }"
+                      }
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_ramp_up_w",
+                      "name": "Шаг ступенчатого набора мощности ⓘ",
+                      "card_mod": {
+                        "style": ":host { position: relative; } :host:hover::after { content: 'На сколько Ват увеличивать общий лимит при каждом новом измерении Grid Power, когда импорт из ТНС не выше уставки. Меньшее число даёт более плавный набор, большее — быстрее использует солнечный избыток.'; position: absolute; z-index: 100; left: 0; top: calc(100% + 4px); width: 350px; padding: 8px; border: 1px solid var(--divider-color); border-radius: 4px; background: var(--card-background-color); color: var(--primary-text-color); font-size: 13px; line-height: 1.35; white-space: normal; box-shadow: var(--ha-card-box-shadow); }"
+                      }
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_minimum_pv_power_w",
+                      "name": "Порог PV после пробной ступени"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_failed_probe_retry_sec",
+                      "name": "Пауза до следующей пробы солнца"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_boiler_max_w",
+                      "name": "Максимум бойлера"
+                    },
+                    {
+                      "entity": "input_number.anenji_surplus_pool_max_w",
+                      "name": "Максимум бассейна"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Бойлер и MQTT",
+                  "icon": "mdi:mqtt",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "markdown",
+                  "content": "Префикс всех строк ниже: `homeassistant/anenji/`. Значение лимита — фактически принятая контроллером копия команды HA.",
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(0,150,136,.13), rgba(38,166,154,.05)); border: 1px solid rgba(38,166,154,.28); border-radius: 18px; }"
+                  }
+                },
+                {
+                  "type": "entities",
+                  "title": "Основные топики",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(0,150,136,.20), rgba(38,166,154,.07)); border: 1px solid rgba(38,166,154,.40); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "sensor.davlenie_davlenie_bar",
+                      "name": "pressure"
+                    },
+                    {
+                      "entity": "sensor.upravlenie_boilerom_upravlenie_bolerom_temperatura",
+                      "name": "boiler_temperature"
+                    },
+                    {
+                      "entity": "switch.upravlenie_boilerom_upravlenie_bolerom_nagrev_razreshen",
+                      "name": "boiler_control_enabled · команда"
+                    },
+                    {
+                      "entity": "binary_sensor.anenji_boiler_control_enabled",
+                      "name": "boiler_control_enabled · подтверждение"
+                    },
+                    {
+                      "entity": "number.upravlenie_boilerom_upravlenie_bolerom_ustavka_temperatury",
+                      "name": "boiler_target_temperature"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "grid",
+              "column_span": 1,
+              "cards": [
+                {
+                  "type": "heading",
+                  "heading": "Работа ESP32 и связь",
+                  "icon": "mdi:access-point-check",
+                  "heading_style": "title"
+                },
+                {
+                  "type": "entities",
+                  "show_header_toggle": false,
+                  "state_color": true,
+                  "grid_options": {
+                    "columns": "full"
+                  },
+                  "card_mod": {
+                    "style": "ha-card { background: linear-gradient(135deg, rgba(96,125,139,.20), rgba(103,58,183,.07)); border: 1px solid rgba(120,144,156,.40); border-radius: 18px; box-shadow: 0 8px 24px rgba(0,0,0,.16); }"
+                  },
+                  "entities": [
+                    {
+                      "entity": "select.upravlenie_boilerom_upravlenie_bolerom_rezhim_nagreva",
+                      "name": "Режим нагрева ESP32"
+                    },
+                    {
+                      "entity": "sensor.upravlenie_boilerom_upravlenie_bolerom_moshchnost_posle_ogranicheniia",
+                      "name": "Запрошено после ограничений"
+                    },
+                    {
+                      "entity": "sensor.upravlenie_boilerom_upravlenie_bolerom_moshchnost_tena",
+                      "name": "Целевая мощность ТЭНа"
+                    },
+                    {
+                      "entity": "sensor.sistema_sistema_mgnovennaia_moshchnost_ssr",
+                      "name": "Мгновенная мощность SSR"
+                    },
+                    {
+                      "entity": "sensor.sistema_sistema_wi_fi_rssi",
+                      "name": "Wi-Fi RSSI"
+                    },
+                    {
+                      "entity": "sensor.upravlenie_boilerom_upravlenie_bolerom_status",
+                      "name": "Статус контроллера"
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "cards": []
+        }
+      ]
+    }
+  }
+}

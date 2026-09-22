@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "minor_version": 1,
+  "key": "lovelace_resources",
+  "data": {
+    "items": [
+      {
+        "id": "8f45cce659d244e0ab9202fc97844f07",
+        "url": "/hacsfiles/lovelace-mushroom/mushroom.js?hacstag=444350375523",
+        "type": "module"
+      },
+      {
+        "id": "a9356d9dd1754da386ae1771dae7a526",
+        "url": "/hacsfiles/Bubble-Card/bubble-card.js?hacstag=680112919340",
+        "type": "module"
+      },
+      {
+        "id": "c747ea231616463b81aec0e7a86df09b",
+        "url": "/hacsfiles/slider-button-card/slider-button-card.js?hacstag=4987940331130",
+        "type": "module"
+      },
+      {
+        "id": "6c8b120288c94b35aca345007e566380",
+        "url": "/hacsfiles/lovelace-card-mod/card-mod.js?hacstag=190927524421",
+        "type": "module"
+      },
+      {
+        "id": "3ff042008c8340e3b5557c31135ebd7f",
+        "url": "/hacsfiles/lovelace-layout-card/layout-card.js?hacstag=156434866247",
+        "type": "module"
+      },
+      {
+        "id": "b2f9a16d0c1d4a8ca4fc2e6b9b1a7e31",
+        "url": "/local/hass-ingress-card.js?v=20260818-1",
+        "type": "module"
+      },
+      {
+        "id": "912c9c6aed2441f1af22d3160c0f5851",
+        "url": "/local/power-flow-card-plus.js?v=20260826-1",
+        "type": "module"
+      },
+      {
+        "id": "6a0d006cc95249c8b809780804aec2d8",
+        "url": "/local/daily-energy-mix-card.js?v=20260907-4",
+        "type": "module"
+      },
+      {
+        "id": "e16e0807fa1343d8b8108d0ac6027f27",
+        "url": "/local/wall-tablet-energy-overview.js?v=20260828-3",
+        "type": "module"
+      },
+      {
+        "id": "a9767023b8df435f8b03f1dcc8cbd641",
+        "url": "/local/wall-tablet-weather-overview.js?v=20260829-6",
+        "type": "module"
+      },
+      {
+        "id": "b0f1d33796514e24a023b28b992fd6a4",
+        "url": "/local/wall-tablet-pool-overview.js?v=20260829-4",
+        "type": "module"
+      },
+      {
+        "id": "d47d1e4f9b904cafbc1af9e810edb3e2",
+        "url": "/local/wall-tablet-power-overview.js?v=20260829-3",
+        "type": "module"
+      },
+      {
+        "id": "f319a4f8cb2d472d8a1b54eec0d7a325",
+        "url": "/local/wall-tablet-aircon-control.js?v=20260903-2",
+        "type": "module"
+      },
+      {
+        "id": "51dd1fb3b7ce4afba979ba6d6fba85c2",
+        "url": "/local/anenji-heating-power-flow-card.js?v=20260911-1",
+        "type": "module"
+      },
+      {
+        "id": "d813bb83e1d44f7ab8f7612d76bf5a2f",
+        "url": "/local/anenji-description-row.js?v=20260911-1",
+        "type": "module"
+      }
+    ]
+  }
+}

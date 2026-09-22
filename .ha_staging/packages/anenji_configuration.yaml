@@ -1,0 +1,1617 @@
+recorder:
+  # Быстрые мощности обновляются часто для UI, но в историю пишем отдельные 15-сек. датчики.
+  exclude:
+    entities:
+      - sensor.moshchnost_pv_pv_power
+      - sensor.moshchnost_nagruzki_load_power
+      - sensor.moshchnost_seti_grid_power
+      - sensor.anenji_flow_battery_power_signed
+      # Внутренняя память быстрого регулятора: эти значения нужны только
+      # текущему контуру и не должны раздувать Recorder ежесекундными записями.
+      - input_number.anenji_surplus_previous_grid_w
+      - input_number.anenji_surplus_previous_grid_2_w
+      - input_number.anenji_surplus_grid_baseline_w
+      - input_number.anenji_surplus_load_baseline_w
+      - input_number.anenji_surplus_baseline_sample_count
+      - input_number.anenji_surplus_last_positive_step_w
+      - input_number.anenji_surplus_pv_before_increase_w
+      - input_text.anenji_surplus_last_grid_report_token
+
+
+mqtt:
+  binary_sensor:
+    - name: "ANENJI Boiler Control Enabled"
+      unique_id: anenji_boiler_control_enabled
+      state_topic: "homeassistant/anenji/boiler_control_enabled"
+      payload_on: "1"
+      payload_off: "0"
+
+    - name: "ANENJI Pool Control Enabled"
+      unique_id: anenji_pool_control_enabled
+      state_topic: "homeassistant/anenji/pool_control_enabled"
+      payload_on: "1"
+      payload_off: "0"
+
+    # Прямые сигналы запроса нагрева для распределителя солнечного избытка.
+    # Бойлер публикует retained 1/0 именно в этом topic (подтверждено прошивкой).
+    - name: "ANENJI Boiler Heat Demand"
+      unique_id: anenji_boiler_heat_demand_v2
+      state_topic: "homeassistant/anenji/esp32_boiler_need"
+      payload_on: "1"
+      payload_off: "0"
+      qos: 1
+      # Прошивка отправляет retained heartbeat каждые 3 с. Большой запас не
+      # превращает единичную задержку MQTT в ложное снятие запроса.
+      expire_after: 45
+
+    # Тот же прямой retained-контракт 1/0 реализован в прошивке бассейна.
+    - name: "ANENJI Pool Heat Demand"
+      unique_id: anenji_pool_heat_demand_v2
+      state_topic: "homeassistant/anenji/esp32_pool_need"
+      payload_on: "1"
+      payload_off: "0"
+      qos: 1
+      expire_after: 45
+
+input_boolean:
+  anenji_surplus_distribution_enabled:
+    name: "ANENJI · Распределение солнечного избытка"
+    icon: mdi:solar-power-variant
+  anenji_surplus_pv_probe_defaults_initialized:
+    name: "ANENJI · Начальные значения PV-пробы применены"
+    icon: mdi:check-decagram-outline
+  anenji_boiler_control_enabled_latch:
+    name: "ANENJI · Бойлер control_enabled latch"
+  anenji_pool_control_enabled_latch:
+    name: "ANENJI · Бассейн control_enabled latch"
+  anenji_boiler_need_latch:
+    name: "ANENJI · Бойлер need latch"
+  anenji_pool_need_latch:
+    name: "ANENJI · Бассейн need latch"
+  anenji_surplus_block_when_rain:
+    name: "ANENJI · Останавливать нагрев при дожде"
+    icon: mdi:weather-rainy
+  anenji_surplus_block_when_snow:
+    name: "ANENJI · Останавливать нагрев при снегопаде"
+    icon: mdi:weather-snowy
+  anenji_surplus_block_when_other_bad_weather:
+    name: "ANENJI · Останавливать нагрев при облачности, тумане или грозе"
+    icon: mdi:weather-cloudy-alert
+  anenji_surplus_schedule_defaults_initialized:
+    name: "ANENJI · Расписание нагрева инициализировано"
+    icon: mdi:cog-sync
+
+input_select:
+  anenji_surplus_forced_output_mode:
+    name: "ANENJI · Принудительный режим инвертора для нагрева"
+    options:
+      - SUB
+      - SOL
+    icon: mdi:solar-power-variant-outline
+  anenji_surplus_boiler_start_reference:
+    name: "Бойлер · начало: от чего считать"
+    options:
+      - Ручное время
+      - Восход солнца
+      - Закат солнца
+    icon: mdi:clock-start
+  anenji_surplus_boiler_end_reference:
+    name: "Бойлер · окончание: от чего считать"
+    options:
+      - Ручное время
+      - Восход солнца
+      - Закат солнца
+    icon: mdi:clock-end
+  anenji_surplus_pool_start_reference:
+    name: "Бассейн · начало: от чего считать"
+    options:
+      - Ручное время
+      - Восход солнца
+      - Закат солнца
+    icon: mdi:clock-start
+  anenji_surplus_pool_end_reference:
+    name: "Бассейн · окончание: от чего считать"
+    options:
+      - Ручное время
+      - Восход солнца
+      - Закат солнца
+    icon: mdi:clock-end
+
+input_number:
+  anenji_dynamic_heater_limit_w:
+    name: "ANENJI · Динамический лимит нагревателей"
+    min: 0
+    max: 5000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+
+  anenji_dynamic_boiler_limit_w:
+    name: "ANENJI · Текущий лимит бойлера"
+    min: 0
+    max: 2000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:water-boiler
+
+  anenji_dynamic_pool_limit_w:
+    name: "ANENJI · Текущий лимит бассейна"
+    min: 0
+    max: 3000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:pool-thermometer
+
+  anenji_surplus_reserve_w:
+    name: "ANENJI · Дополнительный резерв солнечной мощности"
+    min: 0
+    max: 1000
+    step: 25
+    mode: box
+    unit_of_measurement: "Вт"
+    icon: mdi:transmission-tower-export
+
+  anenji_surplus_grid_import_allowance_w:
+    name: "ANENJI · Допустимый импорт из сети при нагреве"
+    min: 50
+    max: 300
+    step: 10
+    mode: slider
+    unit_of_measurement: "Вт"
+    icon: mdi:transmission-tower-import
+
+  anenji_surplus_ramp_up_w:
+    name: "ANENJI · Шаг ступенчатого набора мощности"
+    min: 10
+    max: 100
+    step: 10
+    mode: slider
+    unit_of_measurement: "Вт"
+    icon: mdi:speedometer-slow
+
+  anenji_surplus_minimum_w:
+    name: "ANENJI · Минимальная полезная мощность"
+    min: 0
+    max: 500
+    step: 25
+    mode: box
+    unit_of_measurement: "Вт"
+    icon: mdi:flash-triangle
+
+  anenji_weather_max_age_min:
+    name: "ANENJI · Максимальный возраст данных погоды"
+    min: 10
+    max: 120
+    step: 5
+    mode: box
+    unit_of_measurement: "мин"
+    icon: mdi:weather-clock
+
+  anenji_surplus_minimum_pv_power_w:
+    name: "ANENJI · Порог подтверждения солнца после пробы"
+    min: 0
+    max: 1000
+    step: 10
+    mode: slider
+    unit_of_measurement: "Вт"
+    icon: mdi:solar-power
+  anenji_surplus_failed_probe_retry_sec:
+    name: 'ANENJI · Пауза перед следующей пробой солнца'
+    min: 0
+    max: 60
+    step: 1
+    mode: slider
+    unit_of_measurement: 'с'
+    icon: mdi:timer-refresh-outline
+
+  anenji_surplus_boiler_start_solar_offset_min:
+    name: "Бойлер · сдвиг начала от солнца"
+    min: -180
+    max: 180
+    step: 5
+    mode: slider
+    unit_of_measurement: "мин"
+    icon: mdi:clock-plus-outline
+  anenji_surplus_boiler_end_solar_offset_min:
+    name: "Бойлер · сдвиг окончания от солнца"
+    min: -180
+    max: 180
+    step: 5
+    mode: slider
+    unit_of_measurement: "мин"
+    icon: mdi:clock-minus-outline
+  anenji_surplus_pool_start_solar_offset_min:
+    name: "Бассейн · сдвиг начала от солнца"
+    min: -180
+    max: 180
+    step: 5
+    mode: slider
+    unit_of_measurement: "мин"
+    icon: mdi:clock-plus-outline
+  anenji_surplus_pool_end_solar_offset_min:
+    name: "Бассейн · сдвиг окончания от солнца"
+    min: -180
+    max: 180
+    step: 5
+    mode: slider
+    unit_of_measurement: "мин"
+    icon: mdi:clock-minus-outline
+
+  anenji_surplus_boiler_max_w:
+    name: "ANENJI · Максимум бойлеру"
+    min: 0
+    max: 2000
+    step: 50
+    mode: box
+    unit_of_measurement: "Вт"
+    icon: mdi:water-boiler
+
+  anenji_surplus_pool_max_w:
+    name: "ANENJI · Максимум нагревателю бассейна"
+    min: 0
+    max: 3000
+    step: 25
+    mode: box
+    unit_of_measurement: "Вт"
+    icon: mdi:pool-thermometer
+
+  # Служебные helpers оставлены для совместимости и диагностики предыдущей версии.
+  # Новый прямой регулятор не использует фон или окно из трёх замеров.
+  anenji_surplus_previous_grid_w:
+    name: "ANENJI · Предыдущий замер мощности сети"
+    min: -10000
+    max: 10000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:chart-timeline-variant
+
+  anenji_surplus_previous_grid_2_w:
+    name: "ANENJI · Предыдущий замер сети №2"
+    min: -10000
+    max: 10000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:chart-timeline-variant
+
+  # Архивные диагностические значения фона. Они не участвуют в новом расчёте:
+  # лимит сравнивается непосредственно с raw Grid Power сети ТНС.
+  anenji_surplus_grid_baseline_w:
+    name: "ANENJI · Фоновая мощность сети без нагревателей"
+    min: -10000
+    max: 10000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:transmission-tower
+
+  anenji_surplus_load_baseline_w:
+    name: "ANENJI · Фоновая нагрузка дома без нагревателей"
+    min: 0
+    max: 10000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:home-lightning-bolt
+
+  anenji_surplus_baseline_sample_count:
+    name: "ANENJI · Собрано фоновых замеров"
+    min: 0
+    max: 5
+    step: 1
+    mode: box
+    initial: 0
+    icon: mdi:counter
+
+  # Архивная диагностика предыдущего дифференциального PV-регулятора.
+  anenji_surplus_last_positive_step_w:
+    name: "ANENJI · Последняя положительная ступень"
+    min: 0
+    max: 5000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:stairs-up
+
+  anenji_surplus_pv_before_increase_w:
+    name: "ANENJI · PV перед последней ступенью"
+    min: 0
+    max: 10000
+    step: 1
+    mode: box
+    initial: 0
+    unit_of_measurement: "Вт"
+    icon: mdi:solar-power
+
+input_datetime:
+  anenji_surplus_start_time:
+    name: "ANENJI · Начало распределения избытка"
+    has_date: false
+    has_time: true
+  anenji_surplus_end_time:
+    name: "ANENJI · Окончание распределения избытка"
+    has_date: false
+    has_time: true
+  anenji_surplus_boiler_start_time:
+    name: "Бойлер · ручное время начала"
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  anenji_surplus_boiler_end_time:
+    name: "Бойлер · ручное время окончания"
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  anenji_surplus_pool_start_time:
+    name: "Бассейн · ручное время начала"
+    has_date: false
+    has_time: true
+    icon: mdi:clock-start
+  anenji_surplus_pool_end_time:
+    name: "Бассейн · ручное время окончания"
+    has_date: false
+    has_time: true
+    icon: mdi:clock-end
+  anenji_surplus_sunrise_today:
+    name: "ANENJI · Восход сегодня (служебно)"
+    has_date: true
+    has_time: true
+    icon: mdi:weather-sunset-up
+  anenji_surplus_sunset_today:
+    name: "ANENJI · Закат сегодня (служебно)"
+    has_date: true
+    has_time: true
+    icon: mdi:weather-sunset-down
+  anenji_dynamic_heater_limit_last_increase:
+    name: "ANENJI · Последнее изменение лимита нагревателей"
+    has_date: true
+    has_time: true
+  anenji_surplus_last_decrease:
+    name: "ANENJI · Последнее снижение лимита нагревателей"
+    has_date: true
+    has_time: true
+  anenji_surplus_last_failed_probe:
+    name: "ANENJI · Последняя неудачная проба солнечной мощности"
+    has_date: true
+    has_time: true
+  anenji_surplus_last_sub_request:
+    name: "ANENJI · Последний запрос режима инвертора для нагрева"
+    has_date: true
+    has_time: true
+
+input_text:
+  anenji_surplus_distribution_status:
+    name: "ANENJI · Состояние распределения избытка"
+    initial: "Ожидание первого расчёта"
+    max: 255
+    icon: mdi:information-outline
+
+  # Token гарантирует, что каждый полный last_reported raw Grid будет обработан
+  # ровно один раз — и быстрым state-триггером, и резервным секундным циклом.
+  anenji_surplus_last_grid_report_token:
+    name: "ANENJI · Последний обработанный замер сети"
+    initial: "0"
+    max: 64
+    icon: mdi:identifier
+
+modbus:
+  - name: "ANENJI_6200W"
+    type: rtuovertcp
+    host: 192.168.0.74
+    port: 8899
+
+    # Оставляю как у тебя работало стабильно
+    timeout: 5
+    retries: 5
+    delay: 2
+    message_wait_milliseconds: 5
+
+    sensors:
+
+      # =========================
+      # АВАРИИ / ПРЕДУПРЕЖДЕНИЯ
+      # =========================
+
+      - name: "Код аварий битами (Fault Bitmask)"
+        slave: 1
+        address: 100
+        input_type: holding
+        data_type: uint32
+        swap: word
+        scan_interval: 15
+
+      - name: "Код предупреждений битами (Warning Bitmask, masked)"
+        slave: 1
+        address: 108
+        input_type: holding
+        data_type: uint32
+        scan_interval: 15
+
+      - name: "Маска предупреждений (Warning Mask [I])"
+        slave: 1
+        address: 314
+        input_type: holding
+        data_type: uint32
+        swap: word
+        scan_interval: 60
+
+
+      # =========================
+      # УСТРОЙСТВО / РЕЖИМЫ
+      # =========================
+
+      - name: "Тип устройства (Device type)"
+        slave: 1
+        address: 171
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Режим работы (Working Mode)"
+        slave: 1
+        address: 201
+        input_type: holding
+        data_type: uint16
+        scan_interval: 15
+
+      - name: "Заряд АКБ % (Battery SOC)"
+        slave: 1
+        address: 229
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "%"
+        scan_interval: 15
+
+      - name: "Потоки энергии (Power Flow Status)"
+        slave: 1
+        address: 231
+        input_type: holding
+        data_type: uint16
+        scan_interval: 15
+
+
+      # =========================
+      # СЕТЬ (GRID / MAINS)
+      # =========================
+
+      - name: "Напряжение сети (Grid Voltage)"
+        slave: 1
+        address: 202
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        # Независимое подтверждение наличия ТНС для фильтра ложного Grid Power=0.
+        # Две секунды быстрее защитного окна 5 с и не участвуют в регулировании Вт.
+        scan_interval: 2
+
+      - name: "Частота сети (Grid Frequency)"
+        slave: 1
+        address: 203
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "Hz"
+        scale: 0.01
+        precision: 2
+        scan_interval: 2
+
+      # Grid является обратной связью быстрого регулятора: 1 с даёт аварийное
+      # снижение лимита при облаке/новой фоновой нагрузке максимум за один цикл.
+      - name: "Мощность сети (Grid Power)"
+        slave: 1
+        address: 204
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 1
+
+
+      # =========================
+      # ИНВЕРТОР / ВЫХОД
+      # =========================
+
+      - name: "Напряжение инвертора (Inverter Voltage)"
+        slave: 1
+        address: 205
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Ток инвертора (Inverter Current)"
+        slave: 1
+        address: 206
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Частота инвертора (Inverter Frequency)"
+        slave: 1
+        address: 207
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "Hz"
+        scale: 0.01
+        precision: 2
+        scan_interval: 15
+
+      - name: "Мощность инвертора (Inverter Power)"
+        slave: 1
+        address: 208
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 15
+
+      - name: "Мощность зарядки от инвертора (Inverter Charging Power)"
+        slave: 1
+        address: 209
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 15
+
+      - name: "Выходное напряжение (Output Voltage)"
+        slave: 1
+        address: 210
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Выходной ток (Output Current)"
+        slave: 1
+        address: 211
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Выходная частота (Output Frequency)"
+        slave: 1
+        address: 212
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "Hz"
+        scale: 0.01
+        precision: 2
+        scan_interval: 15
+
+      - name: "Мощность нагрузки (Load Power)"
+        slave: 1
+        address: 213
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 2
+
+      - name: "Полная мощность нагрузки (Load Apparent Power)"
+        slave: 1
+        address: 214
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "VA"
+        scan_interval: 15
+
+
+      # =========================
+      # АКБ (BATTERY)
+      # =========================
+
+      - name: "Напряжение АКБ (Battery Voltage)"
+        slave: 1
+        address: 215
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 2
+
+      - name: "Ток АКБ (Battery Current)"
+        slave: 1
+        address: 216
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Мощность АКБ (Battery Power)"
+        slave: 1
+        address: 217
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 15
+
+      - name: "Ток АКБ знак ± (Battery Current Signed, filtered)"
+        slave: 1
+        address: 232
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 2
+
+      - name: "Ток зарядки от инвертора (Inverter Charging Current)"
+        slave: 1
+        address: 233
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 30
+
+
+      # =========================
+      # PV (СОЛНЕЧНЫЕ ПАНЕЛИ)
+      # =========================
+
+      - name: "Напряжение PV (PV Voltage)"
+        slave: 1
+        address: 219
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Ток PV (PV Current)"
+        slave: 1
+        address: 220
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 15
+
+      - name: "Мощность PV (PV Power)"
+        slave: 1
+        address: 223
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 2
+
+      - name: "Мощность зарядки от PV (PV Charging Power)"
+        slave: 1
+        address: 224
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "W"
+        scan_interval: 15
+
+      - name: "Ток зарядки от PV (PV Charging Current)"
+        slave: 1
+        address: 234
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 30
+
+
+      # =========================
+      # НАГРУЗКА / ТЕМПЕРАТУРЫ
+      # =========================
+
+      - name: "Нагрузка % (Load Percentage)"
+        slave: 1
+        address: 225
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "%"
+        precision: 0
+        scan_interval: 15
+
+      - name: "Температура DC-DC (DCDC Temperature)"
+        slave: 1
+        address: 226
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "°C"
+        scan_interval: 60
+
+      - name: "Температура инвертора (Inverter Temperature)"
+        slave: 1
+        address: 227
+        input_type: holding
+        data_type: int16
+        unit_of_measurement: "°C"
+        scan_interval: 60
+
+
+      # =========================
+      # ЭНЕРГИЯ (как было у тебя)
+      # =========================
+      # Примечание: Energy Today обычно сбрасывается -> НЕ подходит для Energy Dashboard как "total_increasing".
+      # Energy Total можно использовать после конвертации Wh->kWh (см. template ниже).
+
+      - name: "Энергия сегодня (Energy Today)"
+        slave: 1
+        address: 4007
+        input_type: holding
+        data_type: int32
+        swap: word
+        unit_of_measurement: "Wh"
+        scan_interval: 30
+
+      - name: "Энергия всего (Energy Total)"
+        slave: 1
+        address: 4008
+        input_type: holding
+        data_type: int32
+        swap: word
+        unit_of_measurement: "Wh"
+        scan_interval: 60
+
+
+      # =========================
+      # НАСТРОЙКИ (R/W) — ЧТЕНИЕ
+      # =========================
+
+      - name: "Режим выхода (Output Mode)"
+        slave: 1
+        address: 300
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+
+      - name: "Приоритет выхода (Output Priority)"
+        slave: 1
+        address: 301
+        input_type: holding
+        data_type: uint16
+        scan_interval: 5
+
+      - name: "Диапазон входного напряжения (Input Voltage Range)"
+        slave: 1
+        address: 302
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+
+      - name: "Зуммер (Buzzer Mode)"
+        slave: 1
+        address: 303
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+
+      - name: "Подсветка LCD (LCD Backlight)"
+        slave: 1
+        address: 305
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Автовозврат LCD на главную (LCD Auto Home)"
+        slave: 1
+        address: 306
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Энергосбережение (Energy Saving)"
+        slave: 1
+        address: 307
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Автоперезапуск при перегрузке (Overload Auto Restart)"
+        slave: 1
+        address: 308
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Автоперезапуск при перегреве (Overtemp Auto Restart)"
+        slave: 1
+        address: 309
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Bypass при перегрузке (Overload Bypass Enable)"
+        slave: 1
+        address: 310
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Выравнивание АКБ (Battery Eq Enable)"
+        slave: 1
+        address: 313
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Сухой контакт (Dry Contact)"
+        slave: 1
+        address: 316
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Уставка выходного напряжения (Output Voltage Set)"
+        slave: 1
+        address: 320
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 60
+
+      - name: "Уставка выходной частоты (Output Frequency Set)"
+        slave: 1
+        address: 321
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "Hz"
+        scale: 0.01
+        precision: 2
+        scan_interval: 60
+
+      - name: "Тип АКБ (Battery Type)"
+        slave: 1
+        address: 322
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Защита: перенапряжение АКБ (Battery Overvoltage Protection [A])"
+        slave: 1
+        address: 323
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Макс. напряжение зарядки (Maximum Charge Voltage [B])"
+        slave: 1
+        address: 324
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Напряжение float (Floating Charge Voltage [C])"
+        slave: 1
+        address: 325
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Восстановление разряда в сети (Mains Discharge Recovery [D])"
+        slave: 1
+        address: 326
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Защита низкого напряжения в сети (Mains Low Voltage Protect [E])"
+        slave: 1
+        address: 327
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Защита низкого напряжения off-grid (Off-grid Low Voltage Protect [F])"
+        slave: 1
+        address: 329
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Переход CV→Float (CV to Float time)"
+        slave: 1
+        address: 330
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "min"
+        scan_interval: 300
+
+      - name: "Приоритет зарядки (Battery Charging Priority)"
+        slave: 1
+        address: 331
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Макс. ток зарядки (Maximum Charge Current [G])"
+        slave: 1
+        address: 332
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Макс. ток зарядки от сети (Maximum Mains Charge Current [H])"
+        slave: 1
+        address: 333
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "A"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Напряжение EQ (Eq charge voltage)"
+        slave: 1
+        address: 334
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "V"
+        scale: 0.1
+        precision: 1
+        scan_interval: 300
+
+      - name: "Время EQ (bat_eq_time)"
+        slave: 1
+        address: 335
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "min"
+        scan_interval: 300
+
+      - name: "Таймаут EQ (Eq timed out)"
+        slave: 1
+        address: 336
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "min"
+        scan_interval: 300
+
+      - name: "Интервал EQ (Two-time Eq interval)"
+        slave: 1
+        address: 337
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "day"
+        scan_interval: 300
+
+      - name: "Автовключение выхода от сети (Automatic Mains Output Enable)"
+        slave: 1
+        address: 338
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "SOC защита в сети (Mains Discharge SOC Protect [K])"
+        slave: 1
+        address: 341
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "%"
+        scan_interval: 300
+
+      - name: "SOC восстановление в сети (Mains Discharge SOC Recovery)"
+        slave: 1
+        address: 342
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "%"
+        scan_interval: 300
+
+      - name: "SOC защита off-grid (Off-grid Discharge SOC Protect)"
+        slave: 1
+        address: 343
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "%"
+        scan_interval: 300
+
+      - name: "Защита макс. тока разряда (Maximum Discharge Current Protect)"
+        slave: 1
+        address: 351
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "A"
+        scan_interval: 300
+
+      - name: "Режим запуска (Boot Mode)"
+        slave: 1
+        address: 406
+        input_type: holding
+        data_type: uint16
+        scan_interval: 300
+
+      - name: "Удаленный выключатель (Remote Switch)"
+        slave: 1
+        address: 420
+        input_type: holding
+        data_type: uint16
+        scan_interval: 60
+
+
+      # =========================
+      # ПАСПОРТНЫЕ ДАННЫЕ
+      # =========================
+
+      - name: "Номинальная мощность (Rated Power)"
+        slave: 1
+        address: 643
+        input_type: holding
+        data_type: uint16
+        unit_of_measurement: "W"
+        scan_interval: 3600
+
+      - name: "Количество ячеек (Rated cells [J])"
+        slave: 1
+        address: 644
+        input_type: holding
+        data_type: uint16
+        scan_interval: 3600
+
+
+      # =========================
+      # ЖУРНАЛ ОШИБОК (служебное)
+      # =========================
+
+      - name: "Инфо хранилища ошибок (Fault Record Storage Info)"
+        slave: 1
+        address: 700
+        input_type: holding
+        data_type: uint32
+        swap: word
+        scan_interval: 3600
+
+      - name: "Индекс запроса ошибки (Fault Info Query Index)"
+        slave: 1
+        address: 702
+        input_type: holding
+        data_type: uint16
+        scan_interval: 3600
+
+
+# =========================
+# TEMPLATE — потоки + нормализация Power + подготовка для Energy Dashboard
+# =========================
+template:
+  - sensor:
+      # --- Signed battery power = V * I_signed ---
+      - name: "ANENJI Flow Battery Power Signed"
+        unique_id: anenji_flow_batt_power_signed
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ states('sensor.napriazhenie_akb_battery_voltage') not in
+             ['unknown', 'unavailable', 'none', '']
+             and states('sensor.tok_akb_znak_battery_current_signed_filtered')
+             not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set v = states('sensor.napriazhenie_akb_battery_voltage')|float(0) %}
+          {% set i = states('sensor.tok_akb_znak_battery_current_signed_filtered')|float(0) %}
+          {{ (v * i)|round(0) }}
+
+      - name: "ANENJI · Код предупреждений с расшифровкой"
+        default_entity_id: sensor.anenji_warning_bitmask_decoded
+        unique_id: anenji_warning_bitmask_decoded
+        icon: >-
+          {% if states('sensor.kod_preduprezhdenii_bitami_warning_bitmask_masked')|int(0) == 0 %}
+            mdi:check-circle-outline
+          {% else %}
+            mdi:alert-outline
+          {% endif %}
+        availability: >-
+          {{ states('sensor.kod_preduprezhdenii_bitami_warning_bitmask_masked') not in
+             ['unknown', 'unavailable', 'none', ''] }}
+        state: >-
+          {% set mask = states('sensor.kod_preduprezhdenii_bitami_warning_bitmask_masked')|int(0) %}
+          {% if mask == 0 %}
+            0 (предупреждений нет)
+          {% else %}
+            {% set labels = {
+              1: 'резервный бит 0 (не описан производителем)',
+              2: 'искажённая форма сетевого напряжения',
+              4: 'резервный бит 2 (не описан производителем)',
+              8: 'пониженное напряжение сети',
+              16: 'частота сети выше нормы',
+              32: 'частота сети ниже нормы',
+              64: 'Низкое напряжение PV / недостаточно солнечной энергии',
+              128: 'перегрев',
+              256: 'низкое напряжение АКБ',
+              512: 'АКБ не подключён',
+              1024: 'перегрузка выхода',
+              2048: 'выравнивающий заряд АКБ (EQ)',
+              4096: 'АКБ разряжена до низкого напряжения; ожидается восстановление',
+              8192: 'снижение выходной мощности',
+              16384: 'вентилятор заблокирован',
+              32768: 'энергии PV недостаточно для работы',
+              65536: 'прервана связь параллельных инверторов',
+              131072: 'несоответствие одиночного и параллельного режима',
+              262144: 'большая разница напряжений АКБ в параллели'
+            } %}
+            {% set ns = namespace(items=[]) %}
+            {% for value, label in labels.items() %}
+              {% if (mask // value) % 2 == 1 %}
+                {% set ns.items = ns.items + [label] %}
+              {% endif %}
+            {% endfor %}
+            {% for bit in range(19, 32) %}
+              {% set value = 2 ** bit %}
+              {% if (mask // value) % 2 == 1 %}
+                {% set ns.items = ns.items + ['резервный бит ' ~ bit ~ ' (не описан производителем)'] %}
+              {% endif %}
+            {% endfor %}
+            {% set text = ns.items|join('; ') %}
+            {{ mask }} ({{ text[:220] }}{% if text|length > 220 %}…{% endif %})
+          {% endif %}
+
+      # PV -> Load
+      - name: "ANENJI Flow PV to Load"
+        unique_id: anenji_flow_pv_to_load
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set pv = states('sensor.moshchnost_pv_pv_power')|float(0) %}
+          {% set load = states('sensor.moshchnost_nagruzki_load_power')|float(0) %}
+          {% set grid_to_load = states('sensor.anenji_flow_grid_to_load')|float(0) %}
+          {% set battery_to_load = states('sensor.anenji_flow_battery_to_load')|float(0) %}
+          {% set remainder = [load - grid_to_load - battery_to_load, 0] | max %}
+          {{ [[remainder, pv] | min, 0] | max | round(0) }}
+
+      # PV -> Battery (из регистра PV Charging Power)
+      - name: "ANENJI Flow PV to Battery"
+        unique_id: anenji_flow_pv_to_batt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set pv = [states('sensor.moshchnost_pv_pv_power')|float(0), 0] | max %}
+          {% set raw = [states('sensor.moshchnost_zariadki_ot_pv_pv_charging_power')|float(0), 0] | max %}
+          {% set charge = [states('sensor.anenji_battery_charge_power')|float(0), 0] | max %}
+          {{ [pv, raw, charge] | min | round(0) }}
+
+      # Remaining load after PV
+      - name: "ANENJI Flow Load Remaining"
+        unique_id: anenji_flow_load_remaining
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set load = states('sensor.moshchnost_nagruzki_load_power')|float(0) %}
+          {% set pv_to_load = states('sensor.anenji_flow_pv_to_load')|float(0) %}
+          {{ [load - pv_to_load, 0] | max | round(0) }}
+
+      # Battery -> Load (если battery signed power < 0, значит разряд)
+      - name: "ANENJI Flow Battery to Load"
+        unique_id: anenji_flow_batt_to_load
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set load = states('sensor.moshchnost_nagruzki_load_power')|float(0) %}
+          {% set discharge = states('sensor.anenji_battery_discharge_power')|float(0) %}
+          {{ [[discharge, load] | min, 0] | max | round(0) }}
+
+      # Grid -> Load
+      - name: "ANENJI Flow Grid to Load"
+        unique_id: anenji_flow_grid_to_load
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set load = states('sensor.moshchnost_nagruzki_load_power')|float(0) %}
+          {% set grid = states('sensor.anenji_grid_import_power')|float(0) %}
+          {% set grid_to_battery = states('sensor.anenji_flow_grid_to_battery')|float(0) %}
+          {{ [[[grid - grid_to_battery, 0] | max, load] | min, 0] | max | round(0) }}
+
+      # Grid -> Battery (из регистра Inverter Charging Power)
+      - name: "ANENJI Flow Grid to Battery"
+        unique_id: anenji_flow_grid_to_batt
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set grid = [states('sensor.anenji_grid_import_power')|float(0), 0] | max %}
+          {% set raw = [states('sensor.moshchnost_zariadki_ot_invertora_inverter_charging_power')|float(0), 0] | max %}
+          {% set charge = [states('sensor.anenji_battery_charge_power')|float(0), 0] | max %}
+          {{ [grid, raw, charge] | min | round(0) }}
+
+      # Working mode text
+      - name: "ANENJI Working Mode Text"
+        unique_id: anenji_working_mode_text
+        state: >
+          {% set m = states('sensor.rezhim_raboty_working_mode')|int(-1) %}
+          {% set map = {
+            0:'Включение (Power on)',
+            1:'Ожидание (Standby)',
+            2:'Сеть (Mains)',
+            3:'Off-grid',
+            4:'Bypass',
+            5:'Зарядка (Charging)',
+            6:'Авария (Failure)'
+          } %}
+          {{ map.get(m, 'Неизвестно') }}
+
+      # =========================
+      # НОРМАЛИЗОВАННЫЕ POWER сенсоры (для Energy Dashboard)
+      # =========================
+      - name: "ANENJI PV Power"
+        unique_id: anenji_pv_power_norm
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_pv_pv_power')|float(0) | round(0) }}"
+
+      - name: "ANENJI Load Power"
+        unique_id: anenji_load_power_norm
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_nagruzki_load_power')|float(0) | round(0) }}"
+
+      - name: "ANENJI Grid Power"
+        unique_id: anenji_grid_power_norm
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_seti_grid_power')|float(0) | round(0) }}"
+
+      - name: "ANENJI Battery Power Signed"
+        unique_id: anenji_batt_power_signed_norm
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ states('sensor.anenji_flow_battery_power_signed') not in
+             ['unknown', 'unavailable', 'none', ''] }}
+        state: "{{ states('sensor.anenji_flow_battery_power_signed')|float(0) | round(0) }}"
+
+      # Grid split: Import/Export (если у вас знак наоборот — поменяйте местами формулы)
+      - name: "ANENJI Grid Import Power"
+        unique_id: anenji_grid_import_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set p = states('sensor.anenji_grid_power')|float(0) %}
+          {{ [p, 0] | max | round(0) }}
+
+      - name: "ANENJI Grid Export Power"
+        unique_id: anenji_grid_export_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% set p = states('sensor.anenji_grid_power')|float(0) %}
+          {{ [0 - p, 0] | max | round(0) }}
+
+      - name: "ANENJI Surplus Power"
+        unique_id: anenji_surplus_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:water-boiler
+        availability: >
+          {{ states('sensor.moshchnost_seti_grid_power') not in ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set grid = states('sensor.moshchnost_seti_grid_power')|float(0) %}
+          {{ [0 - grid, 0] | max | round(0) }}
+
+      # Battery split: charge/discharge (по знаку Battery Power Signed).
+      # У этого существующего unique_id сохраняем entity_id для совместимости:
+      # отрицательная signed-мощность фактически означает разряд.
+      - name: "ANENJI Battery Discharge Power"
+        unique_id: anenji_batt_discharge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ states('sensor.anenji_battery_power_signed') not in
+             ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set p = states('sensor.anenji_battery_power_signed')|float(0) %}
+          {{ [0 - p, 0] | max | round(0) }}
+
+      - name: "ANENJI Battery Charge Power"
+        unique_id: anenji_batt_charge_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ states('sensor.anenji_battery_power_signed') not in
+             ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set p = states('sensor.anenji_battery_power_signed')|float(0) %}
+          {{ [p, 0] | max | round(0) }}
+
+      # Формат Home Assistant Energy: плюс = разряд, минус = заряд.
+      - name: "ANENJI Battery Power For Energy"
+        unique_id: anenji_battery_power_for_energy
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:battery-sync
+        availability: >
+          {{ states('sensor.anenji_battery_power_signed') not in
+             ['unknown', 'unavailable', 'none', ''] }}
+        state: >
+          {% set p = states('sensor.anenji_battery_power_signed')|float(0) %}
+          {{ (0 - p) | round(0) }}
+
+      # Опционально: Modbus Energy Total (Wh) -> kWh с правильными классами
+      - name: "ANENJI Energy Total (kWh Modbus)"
+        unique_id: anenji_energy_total_kwh_modbus
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        state: "{{ (states('sensor.energiia_vsego_energy_total')|float(0) / 1000) | round(3) }}"
+
+  - binary_sensor:
+      # Сырые значения PV и MQTT иногда кратко проваливаются в 0/off/unavailable.
+      # Включение проходит быстро, а выключение требует устойчивого состояния.
+      - name: "ANENJI PV Power Sufficient Stable"
+        unique_id: anenji_pv_power_sufficient_stable
+        icon: mdi:solar-power
+        state: >-
+          {{ has_value('sensor.moshchnost_pv_pv_power')
+             and states('sensor.moshchnost_pv_pv_power')|float(0)
+                 >= states('input_number.anenji_surplus_minimum_pv_power_w')|float(50) }}
+        delay_on:
+          seconds: 2
+        delay_off:
+          seconds: 20
+
+      # Команда включения проходит немедленно; короткий off/unavailable
+      # подтверждается пять секунд. Локальные защиты ESP32 при этом не задерживаются.
+      - name: "ANENJI Boiler Heat Demand Stable"
+        unique_id: anenji_boiler_heat_demand_stable
+        icon: mdi:water-boiler-alert
+        state: >-
+          {{ is_state('binary_sensor.anenji_boiler_heat_demand', 'on') }}
+        delay_off:
+          seconds: 5
+
+      - name: "ANENJI Pool Heat Demand Stable"
+        unique_id: anenji_pool_heat_demand_stable
+        icon: mdi:pool-thermometer
+        state: >-
+          {{ is_state('binary_sensor.anenji_pool_heat_demand', 'on') }}
+        delay_off:
+          seconds: 5
+
+      - name: "ANENJI · Окно нагрева бойлера"
+        unique_id: anenji_boiler_solar_heating_window
+        icon: mdi:water-boiler
+        state: >-
+          {% set day_start = as_timestamp(today_at('00:00:00')) %}
+          {% set day_end = day_start + 86400 %}
+          {% set now_sec = (as_timestamp(now()) - day_start) | int %}
+          {% set start_source = states('input_select.anenji_surplus_boiler_start_reference') %}
+          {% set end_source = states('input_select.anenji_surplus_boiler_end_reference') %}
+          {% set manual_start = states('input_datetime.anenji_surplus_boiler_start_time') %}
+          {% set manual_end = states('input_datetime.anenji_surplus_boiler_end_time') %}
+          {% set sunrise = as_timestamp(states('input_datetime.anenji_surplus_sunrise_today'), 0) %}
+          {% set sunset = as_timestamp(states('input_datetime.anenji_surplus_sunset_today'), 0) %}
+          {% set start_base = 0 %}
+          {% if start_source == 'Ручное время' and manual_start not in ['unknown','unavailable','none',''] %}
+            {% set start_base = as_timestamp(today_at(manual_start), 0) %}
+          {% elif start_source.startswith('Восход солнца') and day_start <= sunrise < day_end %}
+            {% set start_base = sunrise %}
+          {% elif start_source.startswith('Закат солнца') and day_start <= sunset < day_end %}
+            {% set start_base = sunset %}
+          {% endif %}
+          {% set end_base = 0 %}
+          {% if end_source == 'Ручное время' and manual_end not in ['unknown','unavailable','none',''] %}
+            {% set end_base = as_timestamp(today_at(manual_end), 0) %}
+          {% elif end_source.startswith('Восход солнца') and day_start <= sunrise < day_end %}
+            {% set end_base = sunrise %}
+          {% elif end_source.startswith('Закат солнца') and day_start <= sunset < day_end %}
+            {% set end_base = sunset %}
+          {% endif %}
+          {% set start = start_base + ((states('input_number.anenji_surplus_boiler_start_solar_offset_min')|int(0)) * 60) %}
+          {% set finish = end_base + ((states('input_number.anenji_surplus_boiler_end_solar_offset_min')|int(0)) * 60) %}
+          {% if start_base <= 0 or end_base <= 0 or start == finish %}
+            false
+          {% else %}
+            {% set start_sec = ((start - day_start) % 86400) | int %}
+            {% set finish_sec = ((finish - day_start) % 86400) | int %}
+            {{ (start_sec < finish_sec and start_sec <= now_sec < finish_sec)
+               or (start_sec > finish_sec and (now_sec >= start_sec or now_sec < finish_sec)) }}
+          {% endif %}
+
+      - name: "ANENJI · Окно нагрева бассейна"
+        unique_id: anenji_pool_solar_heating_window
+        icon: mdi:pool-thermometer
+        state: >-
+          {% set day_start = as_timestamp(today_at('00:00:00')) %}
+          {% set day_end = day_start + 86400 %}
+          {% set now_sec = (as_timestamp(now()) - day_start) | int %}
+          {% set start_source = states('input_select.anenji_surplus_pool_start_reference') %}
+          {% set end_source = states('input_select.anenji_surplus_pool_end_reference') %}
+          {% set manual_start = states('input_datetime.anenji_surplus_pool_start_time') %}
+          {% set manual_end = states('input_datetime.anenji_surplus_pool_end_time') %}
+          {% set sunrise = as_timestamp(states('input_datetime.anenji_surplus_sunrise_today'), 0) %}
+          {% set sunset = as_timestamp(states('input_datetime.anenji_surplus_sunset_today'), 0) %}
+          {% set start_base = 0 %}
+          {% if start_source == 'Ручное время' and manual_start not in ['unknown','unavailable','none',''] %}
+            {% set start_base = as_timestamp(today_at(manual_start), 0) %}
+          {% elif start_source.startswith('Восход солнца') and day_start <= sunrise < day_end %}
+            {% set start_base = sunrise %}
+          {% elif start_source.startswith('Закат солнца') and day_start <= sunset < day_end %}
+            {% set start_base = sunset %}
+          {% endif %}
+          {% set end_base = 0 %}
+          {% if end_source == 'Ручное время' and manual_end not in ['unknown','unavailable','none',''] %}
+            {% set end_base = as_timestamp(today_at(manual_end), 0) %}
+          {% elif end_source.startswith('Восход солнца') and day_start <= sunrise < day_end %}
+            {% set end_base = sunrise %}
+          {% elif end_source.startswith('Закат солнца') and day_start <= sunset < day_end %}
+            {% set end_base = sunset %}
+          {% endif %}
+          {% set start = start_base + ((states('input_number.anenji_surplus_pool_start_solar_offset_min')|int(0)) * 60) %}
+          {% set finish = end_base + ((states('input_number.anenji_surplus_pool_end_solar_offset_min')|int(0)) * 60) %}
+          {% if start_base <= 0 or end_base <= 0 or start == finish %}
+            false
+          {% else %}
+            {% set start_sec = ((start - day_start) % 86400) | int %}
+            {% set finish_sec = ((finish - day_start) % 86400) | int %}
+            {{ (start_sec < finish_sec and start_sec <= now_sec < finish_sec)
+               or (start_sec > finish_sec and (now_sec >= start_sec or now_sec < finish_sec)) }}
+          {% endif %}
+
+  - trigger:
+      - platform: time_pattern
+        seconds: "/15"
+    sensor:
+      - name: "ANENJI PV Power History"
+        unique_id: anenji_pv_power_history
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_pv_pv_power')|float(0) | round(0) }}"
+      - name: "ANENJI Load Power History"
+        unique_id: anenji_load_power_history
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_nagruzki_load_power')|float(0) | round(0) }}"
+      - name: "ANENJI Grid Power History"
+        unique_id: anenji_grid_power_history
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.moshchnost_seti_grid_power')|float(0) | round(0) }}"
+      - name: "ANENJI Battery Power History"
+        unique_id: anenji_battery_power_history
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: "{{ states('sensor.anenji_flow_battery_power_signed')|float(0) | round(0) }}"
+
+
+# =========================
+# Integration — энергия из мощности (kWh total)
+# =========================
+sensor:
+  - platform: integration
+    source: sensor.anenji_pv_power
+    name: ANENJI PV Energy Total
+    unique_id: anenji_pv_energy_total
+    unit_prefix: k
+    round: 3
+    method: trapezoidal
+
+  - platform: integration
+    source: sensor.anenji_grid_import_power
+    name: ANENJI Grid Import Energy Total
+    unique_id: anenji_grid_import_energy_total
+    unit_prefix: k
+    round: 3
+    method: trapezoidal
+
+  - platform: integration
+    source: sensor.anenji_grid_export_power
+    name: ANENJI Grid Export Energy Total
+    unique_id: anenji_grid_export_energy_total
+    unit_prefix: k
+    round: 3
+    method: trapezoidal
+
+  - platform: integration
+    source: sensor.anenji_battery_charge_power
+    name: ANENJI Battery Charge Energy Total
+    unique_id: anenji_batt_charge_energy_total
+    unit_prefix: k
+    round: 3
+    method: trapezoidal
+
+  - platform: integration
+    source: sensor.anenji_battery_discharge_power
+    name: ANENJI Battery Discharge Energy Total
+    unique_id: anenji_batt_discharge_energy_total
+    unit_prefix: k
+    round: 3
+    method: trapezoidal
+
+
+# =========================
+# Utility meter — сутки/месяц (по желанию можно добавить год)
+# =========================
+utility_meter:
+  anenji_pv_energy_daily:
+    source: sensor.anenji_pv_energy_total
+    cycle: daily
+  anenji_pv_energy_monthly:
+    source: sensor.anenji_pv_energy_total
+    cycle: monthly
+
+  anenji_grid_import_energy_daily:
+    source: sensor.anenji_grid_import_energy_total
+    cycle: daily
+  anenji_grid_import_energy_monthly:
+    source: sensor.anenji_grid_import_energy_total
+    cycle: monthly
+
+  anenji_grid_export_energy_daily:
+    source: sensor.anenji_grid_export_energy_total
+    cycle: daily
+  anenji_grid_export_energy_monthly:
+    source: sensor.anenji_grid_export_energy_total
+    cycle: monthly
+
+  anenji_batt_charge_energy_daily:
+    source: sensor.anenji_battery_charge_energy_total
+    cycle: daily
+  anenji_batt_charge_energy_monthly:
+    source: sensor.anenji_battery_charge_energy_total
+    cycle: monthly
+
+  anenji_batt_discharge_energy_daily:
+    source: sensor.anenji_battery_discharge_energy_total
+    cycle: daily
+  anenji_batt_discharge_energy_monthly:
+    source: sensor.anenji_battery_discharge_energy_total
+    cycle: monthly

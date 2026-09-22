@@ -4,12 +4,15 @@
 #include "ui - JeeUI2.h"
 #include "LD_2420.h"
 #include "LED_WS2815_sensor.h"
+#include "boiler_relay.h"
 
 inline void interface(){ // Декларатиынве функции интерфейса
     // UI_APP("🏊 Управление подсветкой на кухне");
     // UI_MENU("⚙️ Настройка WS2815 по датчикам объема");
 
     UI_MENU("🌈 Управление RGB подсветкой");
+
+    UI_MENU("🔥 Реле котла");
 
 UI_MENU("⚙️ Все возможное управление и все возможные параметры LD2420");
     
@@ -100,6 +103,25 @@ UI_DISPLAY("RadarCompactLine", RadarCompactLine, "📡 Дистанция LD2420
                                                {"RBG", "RBG"},
                                                {"BRG", "BRG"},
                                                {"BGR", "BGR"}}), "🎚️ Порядок цветов ленты");
+
+
+// Управление сухим контактом, установленным параллельно штатной кнопке котла.
+    UI_PAGE();
+    UI_DISPLAY("BoilerRelayPinInfo", BoilerRelayPinInfo, "🔌 Подключение релейного модуля");
+    UI_DISPLAY_BOOL("BoilerRelayAssumedOn", BoilerRelayAssumedOn,
+                    "🔥 Предполагаемое состояние котла", "ВКЛ", "ВЫКЛ");
+    UI_DISPLAY_BOOL("BoilerRelayContactActive", BoilerRelayContactActive,
+                    "⚡ Контакты реле сейчас", "ЗАМКНУТЫ", "РАЗОМКНУТЫ");
+    UI_DISPLAY("BoilerRelayStatus", BoilerRelayStatus, "ℹ️ Последнее действие");
+    UI_SELECT_CB("BoilerRelayCommand", BoilerRelayCommand,
+                 (std::initializer_list<UIOption>{
+                     {"idle", "Выберите действие"},
+                     {"on", "Включить котёл"},
+                     {"off", "Выключить котёл"},
+                     {"pulse", "Нажать кнопку без проверки"},
+                     {"sync_on", "Считать котёл включённым (без импульса)"},
+                     {"sync_off", "Считать котёл выключенным (без импульса)"}}),
+                 "🎛️ Ручное управление котлом", onBoilerRelayUiCommand);
 
 
 

@@ -8,6 +8,7 @@
 
 #include "wifi_manager.h" // менеджер Wi-Fi
 #include "fs_utils.h" // утилиты файловой системы
+#include "boiler_relay.h" // безопасное импульсное управление кнопкой котла
 
 inline WiFiClient mqttWifiClient; // WiFi-клиент для MQTT
 inline PubSubClient mqttClient(mqttWifiClient); // MQTT-клиент поверх WiFi
@@ -349,6 +350,13 @@ inline void handleMqttCommandMessage(char* topic, byte* payload, unsigned int le
   }
   message.trim(); // очистка
 
+  if(topicStr == BOILER_RELAY_COMMAND_TOPIC){
+    if(!handleBoilerRelayCommand(message, BoilerRelayCommandSource::Mqtt)){
+      Serial.println("[BOILER RELAY] Unsupported MQTT payload: " + message);
+    }
+    return;
+  }
+
   if(topicStr == "home/esp32/SetRGB/set"){
     if(mqttIsAllowedMode(message)){
       mqttApplyRgbMode(message);
@@ -422,6 +430,17 @@ inline void publishMqttStateInt(const char* topic, int value){ // публика
   mqttClient.publish(topic, payload.c_str()); // публикация значения
 }
 
+inline void publishBoilerRelayMqttState(){
+  if(!mqttClient.connected()) return;
+  const bool stateOk = mqttClient.publish(
+      BOILER_RELAY_STATE_TOPIC, BoilerRelayAssumedOn ? "ON" : "OFF", true);
+  const bool contactOk = mqttClient.publish(
+      BOILER_RELAY_CONTACT_TOPIC, BoilerRelayContactActive ? "PULSING" : "IDLE", true);
+  const bool statusOk = mqttClient.publish(
+      BOILER_RELAY_STATUS_TOPIC, BoilerRelayStatus.c_str(), true);
+  if(stateOk && contactOk && statusOk) BoilerRelayMqttStateDirty = false;
+}
+
 
 inline void persistMqttSettings(){ // сохранение настроек MQTT
   if(!spiffsMounted) return; // выход если SPIFFS не смонтирован
@@ -464,6 +483,11 @@ inline void loadMqttSettings(){ // загрузка настроек MQTT
     mqttEnabled = loadValue<int>("mqttEnabled", mqttEnabled ? 1 : 0) == 1; // старый флаг
     persistMqttSettings(); // сохранение в новом формате
   }
+  Serial.printf("[MQTT] Config loaded: host=%s port=%u user=%s password=%s enabled=%s\n",
+                mqttHost.c_str(), static_cast<unsigned>(mqttPort),
+                mqttUsername.length() ? "SET" : "EMPTY",
+                mqttPassword.length() ? "SET" : "EMPTY",
+                mqttEnabled ? "YES" : "NO");
 }
 
 inline void saveMqttSettings(){ // сохранение настроек MQTT
@@ -544,6 +568,8 @@ bool connected = mqttClient.connect( // подключение с логином
 
     if(connected){ // если подключение успешно
       mqttIsConnected = true; // обновление флага
+      Serial.printf("[MQTT] Connected to %s:%u as %s\n",
+                    mqttHost.c_str(), static_cast<unsigned>(mqttPort), clientId.c_str());
        publishMqttAvailability("online", true); // публикация доступности
  #if 0 // MQTT Discovery отключен
       mqttDiscoveryStage = DISCOVERY_NONE; // сброс этапа discovery
@@ -570,16 +596,25 @@ bool connected = mqttClient.connect( // подключение с логином
       mqttClient.subscribe("home/esp32/LedAutoplayDuration/set", 0);
       mqttClient.subscribe("home/esp32/LedAutoplay/set", 0);
       mqttClient.subscribe("home/esp32/LedColorOrder/set", 0);
+      mqttClient.subscribe(BOILER_RELAY_COMMAND_TOPIC, 1);
+      BoilerRelayMqttStateDirty = true;
+      publishBoilerRelayMqttState();
     
     } else { // если не удалось подключиться
       mqttIsConnected = false; // сброс флага
+      Serial.printf("[MQTT] Connection failed, state=%d; retry in %lu ms\n",
+                    mqttClient.state(), mqttConnectInterval);
     }
   }
 }
 
 inline void stopMqttService(){ // остановка MQTT
-    if(mqttClient.connected()) publishMqttAvailability("offline", true); // публикация offline
-  mqttClient.disconnect(); // отключение от брокера
+  if(mqttClient.connected()){
+    publishMqttAvailability("offline", true); // публикация offline
+    mqttClient.disconnect(); // DISCONNECT отправляем только существующему соединению
+  } else {
+    mqttWifiClient.stop(); // локально освобождаем сокет без сетевого обмена при загрузке
+  }
   mqttIsConnected = false; // сброс флага подключения
   mqttLastPublish = 0; // сброс таймера публикаций
   mqttLastConnectAttempt = 0; // сброс таймера подключений
@@ -598,7 +633,9 @@ inline void applyMqttState(){ // применение состояния MQTT
   configureMqttServer(); // настройка сервера
   if(mqttEnabled){ // если MQTT включен
     mqttLastPublish = 0; // сброс таймера
-    connectMqtt(); // подключение
+    // Реальное подключение выполняет webMqttTask уже после server.begin().
+    // Так недоступный брокер никогда не задерживает запуск WEB-интерфейса.
+    mqttLastConnectAttempt = 0;
   }
 }
 
@@ -612,6 +649,8 @@ inline void handleMqttLoop(){ // основной цикл MQTT
   }
 
   mqttClient.loop(); // обработка MQTT
+
+  if(BoilerRelayMqttStateDirty) publishBoilerRelayMqttState();
 
   #if 0 // MQTT Discovery отключен
     if(mqttDiscoveryPending) publishHomeAssistantDiscovery(); // публикация после первого loop

@@ -7,6 +7,7 @@
 
 #include "wifi_manager.h"        // Логика Wi-Fi и сохранение параметров
 #include "fs_utils.h"    // Функции для работы с файловой системой SPIFFS
+#include "boiler_relay.h" // Импульсное реле, подключённое параллельно кнопке котла
 #include "graph.h"       // Функции для графиков и визуализации
 #include "web.h"         // Функции работы Web-панели (ESP-DASH)
 #include "ui - JeeUI2.h"         // Построитель UI в стиле JeeUI2
@@ -29,6 +30,28 @@ bool ReadInputArray[16] = {false}; // Заглушка: Modbus удален, с�
 constexpr BaseType_t kWebMqttCore = 0; // Назначаем ядро 0 для общего сетевого контура WiFi+WEB+MQTT.
 constexpr BaseType_t kMainLogicCore = 1; // Назначаем ядро 1 для всей основной прикладной логики.
 TaskHandle_t webMqttTaskHandle = nullptr; // Сохраняем дескриптор задачи Web+MQTT для диагностики и контроля.
+TaskHandle_t lightingTaskHandle = nullptr; // Сохраняем дескриптор выделенной задачи освещения и опроса радара.
+bool webSelfTestDone = false; // Однократная локальная проверка, что HTTP-сокет действительно принимает соединения.
+
+void runWebServerSelfTest(){
+  if(webSelfTestDone || WiFi.status() != WL_CONNECTED || millis() < 10000UL) return;
+  webSelfTestDone = true;
+  WiFiClient probe;
+  probe.setTimeout(2000);
+  if(!probe.connect(WiFi.localIP(), 80, 2000)){
+    Serial.println("[WEB] Self-test failed: TCP port 80 does not accept connections");
+    return;
+  }
+  probe.print("GET /stats HTTP/1.0\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n");
+  const uint32_t deadline = millis() + 2000UL;
+  while(!probe.available() && probe.connected() && static_cast<int32_t>(deadline - millis()) > 0){
+    delay(10);
+  }
+  String statusLine = probe.available() ? probe.readStringUntil('\n') : String("NO HTTP RESPONSE");
+  statusLine.trim();
+  Serial.println("[WEB] Self-test: " + statusLine);
+  probe.stop();
+}
 
 void webMqttTask(void * /*parameter*/) { // Определяем задачу FreeRTOS, которая будет крутить только WiFi+WEB+MQTT.
   for (;;) { // Запускаем бесконечный цикл, потому что задача должна работать весь аптайм контроллера.
@@ -37,6 +60,18 @@ void webMqttTask(void * /*parameter*/) { // Определяем задачу Fr
     vTaskDelay(pdMS_TO_TICKS(2)); // Делаем короткую паузу, чтобы отдать CPU другим задачам FreeRTOS.
   } // Закрываем цикл непрерывного обслуживания сетевого контура.
 } // Закрываем функцию задачи, закрепляемой за ядром 0.
+
+void lightingTask(void * /*parameter*/) { // Выделяем отдельный детерминированный цикл для радара и WS2815, чтобы убрать рывки анимации.
+  const TickType_t periodTicks = pdMS_TO_TICKS(8); // Фиксированный шаг обновления ~125 Гц для плавной анимации ленты.
+  TickType_t lastWakeTime = xTaskGetTickCount(); // Инициализируем опорное время для vTaskDelayUntil.
+  for (;;) { // Держим задачу активной постоянно, пока работает контроллер.
+    loopBoilerRelay(); // Завершаем импульс реле точно по времени независимо от тяжёлого WEB/MQTT.
+    loop_LD2420(); // Быстрый опрос LD2420 в отдельной задаче, чтобы парсинг UART не тормозил общий loop().
+    loop_LED_WS2815_sensor(); // Логика автоматики света по зонам рядом с датчиком.
+    loop_WS2815(); // Отрисовка кадра ленты в стабильном тайминге.
+    vTaskDelayUntil(&lastWakeTime, periodTicks); // Стабилизируем период запуска цикла независимо от остального кода.
+  } // Завершаем бесконечный цикл задачи освещения.
+} // Закрываем функцию выделенной задачи света/датчика.
 
 
 // ---------- NTP (синхронизация времени) ----------
@@ -78,6 +113,12 @@ void setup() {
   Serial.printf("[BOOT] Reset reason: %s\n", resetReasonText);
   Serial.printf("[BOOT] Chip model: %s | Cores: %u | Revision: %u\n",
                 ESP.getChipModel(), ESP.getChipCores(), ESP.getChipRevision());
+  Serial.printf("[BOOT] Flash: %u bytes | PSRAM detected: %s | PSRAM size: %u bytes | free: %u bytes\n",
+                ESP.getFlashChipSize(), psramFound() ? "YES" : "NO",
+                ESP.getPsramSize(), ESP.getFreePsram());
+
+  Serial.println("[BOOT] Initializing boiler relay in safe state...");
+  setupBoilerRelay();
 
   // Подключение к Wi-Fi с использованием сохранённых данных и кнопок
   StoredAPSSID = loadValue<String>("apSSID", String(apSSID));
@@ -89,8 +130,14 @@ void setup() {
   initWiFiModule();
 
   // Инициализация файловой системы SPIFFS
-    Serial.println("[BOOT] Initializing filesystem...");
+  Serial.println("[BOOT] Initializing filesystem...");
   initFileSystem();
+
+  // Графики читаем до построения большого UI и запуска сетевых задач: так
+  // парсер SPIFFS получает достаточно непрерывной RAM и не конкурирует с HTTP.
+  Serial.println("[BOOT] Loading graphs...");
+  loadGraph();
+  Serial.println("[BOOT] Graphs loaded");
 
   // Загрузка параметра jpg из файловой системы (по умолчанию 1)
   jpg = loadValue<int>("jpg", 1);
@@ -121,9 +168,17 @@ void setup() {
 
   // setupDs18Bindings(); // Загружаем и применяем связанные настройки DS18B20.
 
+  Serial.println("[BOOT] Building WEB interface registry...");
   interface(); // Первичная сборка UI нужна для загрузки/сохранения связанных значений из EEPROM
   dashInterfaceInitialized = true; // Критический фикс: запрещаем повторный вызов interface() в dash.begin(), иначе вкладки/элементы дублируются
+  Serial.println("[BOOT] Starting HTTP server on port 80...");
+  dash.begin(); // WEB должен стать доступен до запуска необязательных датчиков и LED.
+  Serial.println("[BOOT] HTTP server started");
+
+  xTaskCreatePinnedToCore(webMqttTask, "WebMqttCoreTask", 8192, nullptr, 2, &webMqttTaskHandle, kWebMqttCore); // Сетевой контур запускаем немедленно, чтобы периферия не могла задержать WEB/WiFi.
+  Serial.println("[BOOT] WiFi+WEB+MQTT service task started");
   
+  Serial.println("[BOOT] Synchronizing UI settings...");
   syncCleanDaysFromSelection();
 
   ColorRGB = LedColorMode.equalsIgnoreCase("manual");
@@ -132,21 +187,20 @@ void setup() {
 
   new_bright = LedBrightness;
 
+  Serial.println("[BOOT] Initializing WS2815 strip...");
   setup_WS2815();
+  Serial.println("[BOOT] WS2815 strip initialized");
+  Serial.println("[BOOT] Initializing lighting sensor logic...");
   setup_LED_WS2815_sensor();
+  Serial.println("[BOOT] Lighting sensor logic initialized");
 
+  Serial.println("[BOOT] Initializing LD2420...");
   setup_LD2420();
+  Serial.println("[BOOT] LD2420 initialized");
 
 
 
-  // ---------- Настройка графиков ----------
-  loadGraph();
-
-  dash.begin(); // Запуск дашборда
-
-
-
-  xTaskCreatePinnedToCore(webMqttTask, "WebMqttCoreTask", 8192, nullptr, 2, &webMqttTaskHandle, kWebMqttCore); // Создаем и прикрепляем задачу WiFi+WEB+MQTT именно к ядру 0.
+  xTaskCreatePinnedToCore(lightingTask, "LightingCoreTask", 8192, nullptr, 3, &lightingTaskHandle, kMainLogicCore); // Выделяем отдельную приоритетную задачу света и датчика на ядре 1.
   Serial.printf("[BOOT] CORE MAP -> WiFi+WEB+MQTT: %d | Main logic(loop): %d\n", kWebMqttCore, kMainLogicCore); // Печатаем явную карту ядер, чтобы одним взглядом видеть распределение.
 
 
@@ -165,6 +219,7 @@ Serial.printf(
 
 /* ---------- Loop ---------- */
 void loop() {
+  runWebServerSelfTest(); // Проверяем HTTP после получения STA-адреса, не полагаясь на маршрут Windows/VPN.
 
   static bool mainCoreLogged = false; // Запоминаем, что диагностический лог по ядру loop уже был напечатан.
   if (!mainCoreLogged) { // Проверяем, что стартовый лог по ядру основной логики еще не выводился.
@@ -334,7 +389,6 @@ void loop() {
   }
 
 
-  loop_LD2420();
   const uint32_t nowMs = millis(); // Время для оценки «свежести» кадров LD2420.
   const bool ldFresh = (LD2420_LAST_FRAME_AT_MS > 0) && ((nowMs - static_cast<uint32_t>(LD2420_LAST_FRAME_AT_MS)) <= 1500UL); // Учитываем только свежие данные LD2420.
   if (ldFresh && LD2420_DISTANCE_M > 0.01f) {
@@ -350,7 +404,5 @@ void loop() {
                    + "  •  🎯 Цель: " + String(LD2420_HAS_TARGET ? "ДА" : "НЕТ")
                    + "  •  ⌛ Age: " + String(LD2420_LAST_DISTANCE_AGE_MS) + " ms";
 
-  loop_LED_WS2815_sensor();
-  loop_WS2815();
 
 }

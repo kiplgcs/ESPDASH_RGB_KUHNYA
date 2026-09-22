@@ -100,8 +100,11 @@ inline void loadGraphSeries(const String &series, vector<GraphPoint> &points){ /
     Serial.println("Failed to open graph file for reading: " + path); // вывод ошибки
     return; // выходим
   }
-  while(f.available()){ // читаем файл построчно
+  size_t linesRead = 0; // ограничиваем повреждённый файл, чтобы он не мог задержать запуск WEB
+  constexpr size_t maxStoredLines = 200; // UI всё равно допускает не более 50 отображаемых точек
+  while(f.available() && linesRead < maxStoredLines){ // читаем файл построчно с защитным лимитом
     String line = f.readStringUntil('\n'); // читаем одну строку
+    ++linesRead;
     line.trim(); // удаляем пробелы и переводы строк
     if(line.length() == 0) continue; // пропускаем пустые строки
     int sep = line.indexOf(','); // ищем разделитель CSV
@@ -110,7 +113,9 @@ inline void loadGraphSeries(const String &series, vector<GraphPoint> &points){ /
     gp.time = line.substring(0, sep); // извлекаем временную метку
     gp.value = line.substring(sep+1).toFloat(); // извлекаем значение
     points.push_back(gp); // добавляем точку в массив
+    if((linesRead & 0x0F) == 0) yield(); // не удерживаем watchdog при чтении SPIFFS
   }
+  if(f.available()) Serial.println("Graph file truncated while loading: " + path);
   f.close(); // закрываем файл
 }
 
@@ -136,6 +141,7 @@ inline std::map<String, unsigned long> seriesLastUpdate; // таймстемп �
 // Загружает основной график и его настройки
 inline void loadGraph(){ // инициализация основной серии графика
   GraphSettings mainCfg{static_cast<unsigned long>(1000), 30}; // значения по умолчанию: 1 секунда и 30 точек
+  Serial.println("[GRAPH] Loading main settings");
   loadGraphSettings("main", mainCfg); // попытка загрузить сохранённые настройки из SPIFFS
 
   if(mainCfg.updateInterval < minGraphUpdateInterval) mainCfg.updateInterval = minGraphUpdateInterval; // защита от слишком частых обновлений
@@ -145,10 +151,13 @@ inline void loadGraph(){ // инициализация основной сери
   updateInterval = mainCfg.updateInterval; // сохраняем интервал обновления как глобальный
   maxPoints = mainCfg.maxPoints; // сохраняем лимит точек как глобальный
 
+  Serial.println("[GRAPH] Loading main data");
   loadGraphSeries("main", graphPoints); // загружаем сохранённые точки основной серии
+  Serial.printf("[GRAPH] Loaded %u point(s)\n", static_cast<unsigned>(graphPoints.size()));
 
   seriesConfig["main"] = mainCfg; // сохраняем конфигурацию основной серии
   seriesLastUpdate["main"] = 0; // сбрасываем время последнего обновления
+  Serial.println("[GRAPH] Main graph ready");
 }
 
 // Добавляет точку в основной график с учетом интервала

@@ -1,0 +1,1559 @@
+- id: '1702808251521'
+  alias: Обновление сертификата Let's Encrypt
+  description: 'Следит за валидностью сертификата Let''s Encrypt на Keenetic и перезапускает
+    обновление сертификата при переходе статуса в false. Исходная инструкция: https://www.youtube.com/watch?v=-Tp1l4-N14A&ab_channel=BootUseDinamontuz'
+  trigger:
+  - platform: state
+    entity_id: sensor.raspberry_kiplgcs_keenetic_pro_cert_expiry
+    attribute: is_valid
+    from: 'true'
+    to: 'false'
+  condition: []
+  action:
+  - service: shell_command.letsencrypt_restart
+    data: {}
+  mode: single
+- id: anenji_dynamic_heater_limit_distribution
+  alias: Распределение избытка солнечной мощности ANENJI между бойлером и бассейном
+  initial_state: false
+  description: 'Прямой ступенчатый регулятор по мощности сети Grid Power (регистр
+    204), а не по общей мощности нагрузки Load Power. При каждом новом замере ANENJI
+    по RS232 общий лимит растёт на заданную пользователем ступень. В зоне лимита до
+    350 Вт одиночный умеренный скачок Grid Power фильтруется и подтверждается вторым
+    замером RS232; крупный скачок или работа выше 350 Вт корректируются немедленно.
+    Подтверждённое превышение снимается полностью: новый лимит равен старому минус
+    (Grid Power - уставка). Перед подачей нагрузки Program 01 переводится в выбранный
+    пользователем режим SUB (301=3) или SOL (301=1), и выдача мощности начинается
+    только после подтверждения регистра. Бойлер получает первый приоритет до своего
+    максимума, бассейн — только остаток. При Grid Power = 0 Вт непрерывно 5 секунд
+    в выбранном режиме оба MQTT-лимита принудительно становятся 0 Вт. После 10 секунд
+    нулевой сети осторожный набор разрешён только при свежих данных АКБ и мощности
+    АКБ >= 0 Вт; любое достоверное значение разряда АКБ немедленно обнуляет оба лимита.'
+  triggers:
+  - trigger: time_pattern
+    seconds: /1
+    id: control_tick
+  - trigger: homeassistant
+    event: start
+    id: home_assistant_start
+  - trigger: state
+    entity_id:
+    - sensor.moshchnost_seti_grid_power
+    - sensor.napriazhenie_seti_grid_voltage
+    - sensor.chastota_seti_grid_frequency
+    - sensor.moshchnost_pv_pv_power
+    - sensor.anenji_flow_battery_power_signed
+    - sun.sun
+    - weather.openweathermap
+    - sensor.openweathermap_condition
+    - sensor.openweathermap_rain_intensity
+    - sensor.openweathermap_snow_intensity
+    - sensor.openweathermap_precipitation_kind
+    - sensor.openweathermap_cloud_coverage
+    - binary_sensor.anenji_okno_nagreva_boilera
+    - binary_sensor.anenji_okno_nagreva_basseina
+    - sensor.prioritet_vykhoda_output_priority
+    - binary_sensor.anenji_boiler_heat_demand
+    - binary_sensor.anenji_pool_heat_demand
+    - binary_sensor.anenji_boiler_heat_demand_stable
+    - binary_sensor.anenji_pool_heat_demand_stable
+    - input_boolean.anenji_surplus_distribution_enabled
+    - input_boolean.anenji_surplus_block_when_rain
+    - input_boolean.anenji_surplus_block_when_snow
+    - input_boolean.anenji_surplus_block_when_other_bad_weather
+    - input_number.anenji_surplus_grid_import_allowance_w
+    - input_number.anenji_surplus_ramp_up_w
+    - input_number.anenji_surplus_minimum_pv_power_w
+    - input_number.anenji_surplus_failed_probe_retry_sec
+    - input_number.anenji_surplus_boiler_start_solar_offset_min
+    - input_number.anenji_surplus_boiler_end_solar_offset_min
+    - input_number.anenji_surplus_pool_start_solar_offset_min
+    - input_number.anenji_surplus_pool_end_solar_offset_min
+    - input_number.anenji_surplus_boiler_max_w
+    - input_number.anenji_surplus_pool_max_w
+    - input_select.anenji_surplus_boiler_start_reference
+    - input_select.anenji_surplus_boiler_end_reference
+    - input_select.anenji_surplus_pool_start_reference
+    - input_select.anenji_surplus_pool_end_reference
+    - input_datetime.anenji_surplus_boiler_start_time
+    - input_datetime.anenji_surplus_boiler_end_time
+    - input_datetime.anenji_surplus_pool_start_time
+    - input_datetime.anenji_surplus_pool_end_time
+    id: state_changed
+  - trigger: state
+    entity_id: input_select.anenji_surplus_forced_output_mode
+    id: forced_mode_changed
+  conditions:
+  - condition: state
+    entity_id: sun.sun
+    state: above_horizon
+  - condition: state
+    entity_id: input_boolean.anenji_surplus_distribution_enabled
+    state: 'on'
+  actions:
+  - variables:
+      previous_total_power: "{{ states('input_number.anenji_dynamic_heater_limit_w')\n
+        \  | float(0) | round(0) | int }}"
+      grid_import_allowance_w: "{{ states('input_number.anenji_surplus_grid_import_allowance_w')\n
+        \  | float(200) | round(0) | int }}"
+      reserve_w: "{{ states('input_number.anenji_surplus_reserve_w')\n   | float(0)
+        | round(0) | int }}"
+      ramp_up_w: "{% set configured = states('input_number.anenji_surplus_ramp_up_w')\n
+        \  | float(50) | round(0) | int %}\n{{ [[configured, 10] | max, 100] | min
+        | int }}"
+      minimum_w: "{{ states('input_number.anenji_surplus_minimum_w')\n   | float(100)
+        | round(0) | int }}"
+      pv_probe_retry_sec: "{% set configured = states('input_number.anenji_surplus_failed_probe_retry_sec')\n
+        \  | float(10) | round(0) | int %}\n{{ [[configured, 0] | max, 60] | min |
+        int }}"
+      weather_max_age_sec: "{{ (states('input_number.anenji_weather_max_age_min')\n
+        \  | float(30) * 60) | round(0) | int }}"
+      boiler_max_w: "{{ states('input_number.anenji_surplus_boiler_max_w')\n   | float(2000)
+        | round(0) | int }}"
+      pool_max_w: "{{ states('input_number.anenji_surplus_pool_max_w')\n   | float(2525)
+        | round(0) | int }}"
+      pv_w: "{{ states('sensor.moshchnost_pv_pv_power')\n   | float(0) | round(0)
+        | int }}"
+      pv_voltage_v: "{{ states('sensor.napriazhenie_pv_pv_voltage')\n   | float(0)
+        | round(1) }}"
+      grid_w: "{{ states('sensor.moshchnost_seti_grid_power')\n   | float(0) | round(0)
+        | int }}"
+      grid_voltage_v: "{{ states('sensor.napriazhenie_seti_grid_voltage')\n   | float(0)
+        | round(1) }}"
+      grid_frequency_hz: "{{ states('sensor.chastota_seti_grid_frequency')\n   | float(0)
+        | round(2) }}"
+      load_w: "{{ states('sensor.moshchnost_nagruzki_load_power')\n   | float(0) |
+        round(0) | int }}"
+      battery_signed_w: '{% set voltage = states(''sensor.napriazhenie_akb_battery_voltage'')
+        | float(0) %} {% set current = states(''sensor.tok_akb_znak_battery_current_signed_filtered'')
+        | float(0) %} {{ (voltage * current) | round(0) | int }}'
+      battery_raw_data_fresh: "{% set now_ts = as_timestamp(now()) %} {% set voltage
+        = states.sensor.napriazhenie_akb_battery_voltage %} {% set current = states.sensor.tok_akb_znak_battery_current_signed_filtered
+        %} {{ has_value('sensor.napriazhenie_akb_battery_voltage')\n   and has_value('sensor.tok_akb_znak_battery_current_signed_filtered')\n
+        \  and voltage is defined and voltage.last_reported is not none\n   and current
+        is defined and current.last_reported is not none\n   and now_ts - as_timestamp(voltage.last_reported,
+        0) <= 5\n   and now_ts - as_timestamp(current.last_reported, 0) <= 5 }}"
+      inverter_mode_code: '{{ states(''sensor.prioritet_vykhoda_output_priority'')
+        | int(-1) }}'
+      desired_output_mode: "{{ 'SOL'\n   if is_state('input_select.anenji_surplus_forced_output_mode',
+        'SOL')\n   else 'SUB' }}"
+      desired_output_mode_code: "{{ 1\n   if is_state('input_select.anenji_surplus_forced_output_mode',
+        'SOL')\n   else 3 }}"
+      boiler_need_state: '{{ states(''binary_sensor.anenji_boiler_heat_demand'') }}'
+      pool_need_state: '{{ states(''binary_sensor.anenji_pool_heat_demand'') }}'
+      boiler_need: "{{ is_state('binary_sensor.anenji_boiler_heat_demand', 'on')\n
+        \  or is_state('binary_sensor.anenji_boiler_heat_demand_stable', 'on') }}"
+      pool_need: "{{ is_state('binary_sensor.anenji_pool_heat_demand', 'on')\n   or
+        is_state('binary_sensor.anenji_pool_heat_demand_stable', 'on') }}"
+      boiler_need_filtered_hold: "{{ not is_state('binary_sensor.anenji_boiler_heat_demand',
+        'on')\n   and is_state('binary_sensor.anenji_boiler_heat_demand_stable', 'on')
+        }}"
+      pool_need_filtered_hold: "{{ not is_state('binary_sensor.anenji_pool_heat_demand',
+        'on')\n   and is_state('binary_sensor.anenji_pool_heat_demand_stable', 'on')
+        }}"
+      active_need: '{{ boiler_need | bool(false) or pool_need | bool(false) }}'
+      measurements_valid: "{% set now_ts = as_timestamp(now()) %} {{ has_value('sensor.moshchnost_seti_grid_power')\n
+        \  and now_ts - as_timestamp(\n     states.sensor.moshchnost_seti_grid_power.last_reported,
+        0) <= 8 }}"
+      load_data_fresh: "{% set now_ts = as_timestamp(now()) %} {{ has_value('sensor.moshchnost_nagruzki_load_power')\n
+        \  and now_ts - as_timestamp(\n     states.sensor.moshchnost_nagruzki_load_power.last_reported,
+        0) <= 8 }}"
+      pv_power_fresh: "{% set now_ts = as_timestamp(now()) %} {{ has_value('sensor.moshchnost_pv_pv_power')\n
+        \  and now_ts - as_timestamp(\n     states.sensor.moshchnost_pv_pv_power.last_reported,
+        0) <= 8 }}"
+      pv_power_age_sec: "{% set pv_state = states.sensor.moshchnost_pv_pv_power %}
+        {{ (as_timestamp(now()) - as_timestamp(pv_state.last_reported, 0))|int\n   if
+        pv_state is defined and pv_state.last_reported is not none\n   else 999 }}"
+      sun_above_horizon: '{{ is_state(''sun.sun'', ''above_horizon'') }}'
+      minimum_pv_power_w: "{{ states('input_number.anenji_surplus_minimum_pv_power_w')\n
+        \  | float(300) | round(0) | int }}"
+      pv_power_sufficient_now: "{{ pv_power_fresh|bool(false)\n   and pv_w|int(0)
+        >= minimum_pv_power_w|int(50) }}"
+      pv_power_sufficient: 'true'
+      pv_low_filtered_hold: 'false'
+      pv_voltage_ready: "{% set now_ts = as_timestamp(now()) %} {{ has_value('sensor.napriazhenie_pv_pv_voltage')\n
+        \  and now_ts - as_timestamp(\n     states.sensor.napriazhenie_pv_pv_voltage.last_reported,
+        0) <= 45\n   and pv_voltage_v|float(0) >= 60 }}"
+      weather_data_fresh: "{% set now_ts = as_timestamp(now()) %} {% set max_age =
+        weather_max_age_sec | int(1800) %} {{ (has_value('weather.openweathermap')\n
+        \    and now_ts - as_timestamp(\n       states.weather.openweathermap.last_reported,
+        0) <= max_age)\n   or (has_value('sensor.openweathermap_condition')\n     and
+        now_ts - as_timestamp(\n       states.sensor.openweathermap_condition.last_reported,
+        0) <= max_age)\n   or (has_value('sensor.openweathermap_rain_intensity')\n
+        \    and now_ts - as_timestamp(\n       states.sensor.openweathermap_rain_intensity.last_reported,
+        0) <= max_age)\n   or (has_value('sensor.openweathermap_snow_intensity')\n
+        \    and now_ts - as_timestamp(\n       states.sensor.openweathermap_snow_intensity.last_reported,
+        0) <= max_age)\n   or (has_value('sensor.openweathermap_precipitation_kind')\n
+        \    and now_ts - as_timestamp(\n       states.sensor.openweathermap_precipitation_kind.last_reported,
+        0) <= max_age)\n   or (has_value('sensor.openweathermap_cloud_coverage')\n
+        \    and now_ts - as_timestamp(\n       states.sensor.openweathermap_cloud_coverage.last_reported,
+        0) <= max_age) }}"
+      rain_now: "{% set weather = states('weather.openweathermap') | lower %} {% set
+        condition = states('sensor.openweathermap_condition') | lower %} {% set kind
+        = states('sensor.openweathermap_precipitation_kind') | lower %} {% set intensity
+        = states('sensor.openweathermap_rain_intensity') | float(0) %} {% set rainy
+        = ['rainy','pouring','hail','snowy-rainy','lightning-rainy'] %} {{ intensity
+        > 0 or weather in rainy or condition in rainy\n   or 'rain' in weather or
+        'rain' in condition or 'rain' in kind\n   or 'дожд' in weather or 'дожд' in
+        condition or 'дожд' in kind }}"
+      snow_now: "{% set weather = states('weather.openweathermap') | lower %} {% set
+        condition = states('sensor.openweathermap_condition') | lower %} {% set kind
+        = states('sensor.openweathermap_precipitation_kind') | lower %} {% set intensity
+        = states('sensor.openweathermap_snow_intensity') | float(0) %} {% set snowy
+        = ['snowy', 'snowy-rainy'] %} {{ intensity > 0 or weather in snowy or condition
+        in snowy\n   or 'snow' in weather or 'snow' in condition or 'snow' in kind\n
+        \  or 'снег' in weather or 'снег' in condition or 'снег' in kind }}"
+      other_bad_weather_now: "{% set weather = states('weather.openweathermap') |
+        lower %} {% set condition = states('sensor.openweathermap_condition') | lower
+        %} {% set kind = states('sensor.openweathermap_precipitation_kind') | lower
+        %} {% set clouds = states('sensor.openweathermap_cloud_coverage') | float(0)
+        %} {% set severe = ['lightning', 'lightning-rainy', 'hail', 'fog', 'windy',
+        'exceptional'] %} {{ clouds >= 95 or weather in severe or condition in severe
+        or kind in severe\n   or 'thunder' in weather or 'thunder' in condition\n
+        \  or 'storm' in weather or 'storm' in condition\n   or 'туман' in weather
+        or 'туман' in condition }}"
+      weather_blocks_heating: "{{ weather_data_fresh|bool(false) and\n   ((is_state('input_boolean.anenji_surplus_block_when_rain',
+        'on')\n     and rain_now|bool(false))\n    or (is_state('input_boolean.anenji_surplus_block_when_snow',
+        'on')\n     and snow_now|bool(false))\n    or (is_state('input_boolean.anenji_surplus_block_when_other_bad_weather',
+        'on')\n     and other_bad_weather_now|bool(false))) }}"
+      weather_block_reason: "{% if is_state('input_boolean.anenji_surplus_block_when_rain',
+        'on')\n      and rain_now|bool(false) %}дождь\n{% elif is_state('input_boolean.anenji_surplus_block_when_snow',
+        'on')\n      and snow_now|bool(false) %}снег\n{% else %}сильная облачность,
+        туман, гроза или другое выбранное ухудшение погоды {% endif %}"
+      inside_time_window: "{% set current = now().strftime('%H:%M:%S') %} {% set start
+        = states('input_datetime.anenji_surplus_start_time') %} {% set finish = states('input_datetime.anenji_surplus_end_time')
+        %} {% if start in ['unknown','unavailable','none','']\n      or finish in
+        ['unknown','unavailable','none','']\n      or start == finish %}\n  false\n{%
+        elif start < finish %}\n  {{ start <= current < finish }}\n{% else %}\n  {{
+        current >= start or current < finish }}\n{% endif %}"
+      boiler_schedule_active: '{{ is_state(''binary_sensor.anenji_okno_nagreva_boilera'',
+        ''on'') }}'
+      pool_schedule_active: '{{ is_state(''binary_sensor.anenji_okno_nagreva_basseina'',
+        ''on'') }}'
+      boiler_heating_allowed: '{{ boiler_need|bool(false) and boiler_schedule_active|bool(false)
+        }}'
+      pool_heating_allowed: '{{ pool_need|bool(false) and pool_schedule_active|bool(false)
+        }}'
+      active_scheduled_need: '{{ boiler_heating_allowed|bool(false) or pool_heating_allowed|bool(false)
+        }}'
+      request_cap_w: '{% set boiler = boiler_max_w|int(0) if boiler_heating_allowed|bool(false)
+        else 0 %} {% set pool = pool_max_w|int(0) if pool_heating_allowed|bool(false)
+        else 0 %} {{ [boiler + pool, 5000] | min | int }}'
+  - variables:
+      grid_report_token: "{% set sensor_state = states.sensor.moshchnost_seti_grid_power
+        %} {{ sensor_state.last_reported.isoformat()\n   if sensor_state is defined
+        and sensor_state.last_reported is not none\n   else 'unavailable' }}"
+      last_grid_report_token: '{{ states(''input_text.anenji_surplus_last_grid_report_token'')
+        }}'
+      control_sample_is_new: "{{ grid_report_token not in ['unknown','unavailable','none','']\n
+        \  and grid_report_token != last_grid_report_token }}"
+      grid_zero_age_sec: "{% set sensor_state = states.sensor.moshchnost_seti_grid_power
+        %} {% set zero_age = as_timestamp(now()) - as_timestamp(\n     sensor_state.last_changed,
+        as_timestamp(now()))\n   if sensor_state is defined else 0 %}\n{{ zero_age|int(0)
+        if measurements_valid|bool(false)\n   and grid_w|int(0) == 0 else 0 }}"
+      previous_grid_w: "{{ states('input_number.anenji_surplus_previous_grid_w')\n
+        \  | float(grid_w|int(0)) | round(0) | int }}"
+      previous_grid_2_w: "{{ states('input_number.anenji_surplus_previous_grid_2_w')\n
+        \  | float(previous_grid_w|int(0)) | round(0) | int }}"
+      direct_export_w: '{{ [0 - grid_w|int(0), 0] | max | int }}'
+      direct_export_available: "{{ measurements_valid|bool(false)\n   and pv_voltage_ready|bool(false)\n
+        \  and (0 - grid_w|int(0) - reserve_w|int(0)) >= 30 }}"
+      scheduled_probe_allowed: "{{ inside_time_window|bool(false)\n   and weather_data_fresh|bool(false)\n
+        \  and not rain_now|bool(false) }}"
+      recent_sub_handoff: "{% set saved = states('input_datetime.anenji_surplus_last_sub_request')
+        %} {% set last_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set age = as_timestamp(now()) - last_ts
+        %} {{ pv_voltage_ready|bool(false) and last_ts > 0 and 0 <= age <= 30 }}"
+  - variables:
+      grid_zero_samples_confirmed: "{{ measurements_valid|bool(false) and grid_w|int(0)
+        == 0\n   and previous_grid_w|int(1) == 0\n   and previous_grid_2_w|int(1)
+        == 0 }}"
+      grid_input_present_after_zero: "{% set now_ts = as_timestamp(now()) %} {% set
+        grid_state = states.sensor.moshchnost_seti_grid_power %} {% set voltage_state
+        = states.sensor.napriazhenie_seti_grid_voltage %} {% set frequency_state =
+        states.sensor.chastota_seti_grid_frequency %} {% set zero_started = as_timestamp(\n
+        \    grid_state.last_changed, 0) if grid_state is defined else 0 %}\n{% set
+        voltage_reported = as_timestamp(\n     voltage_state.last_reported, 0) if
+        voltage_state is defined else 0 %}\n{% set frequency_reported = as_timestamp(\n
+        \    frequency_state.last_reported, 0) if frequency_state is defined else
+        0 %}\n{% set voltage_confirms =\n     has_value('sensor.napriazhenie_seti_grid_voltage')\n
+        \    and voltage_reported >= zero_started\n     and now_ts - voltage_reported
+        <= 5\n     and 180 <= grid_voltage_v|float(0) <= 260 %}\n{% set frequency_confirms
+        =\n     has_value('sensor.chastota_seti_grid_frequency')\n     and frequency_reported
+        >= zero_started\n     and now_ts - frequency_reported <= 5\n     and 45 <=
+        grid_frequency_hz|float(0) <= 55 %}\n{{ grid_w|int(0) == 0 and zero_started
+        > 0\n   and (voltage_confirms or frequency_confirms) }}"
+  - variables:
+      grid_zero_for_5s: "{{ measurements_valid|bool(false) and grid_w|int(0) == 0\n
+        \  and grid_zero_age_sec|int(0) >= 5\n   and grid_zero_samples_confirmed|bool(false)\n
+        \  and not grid_input_present_after_zero|bool(false) }}"
+      grid_zero_for_10s: "{{ measurements_valid|bool(false) and grid_w|int(0) == 0\n
+        \  and grid_zero_age_sec|int(0) >= 10\n   and grid_zero_samples_confirmed|bool(false)\n
+        \  and not grid_input_present_after_zero|bool(false) }}"
+      battery_discharging: "{{ battery_raw_data_fresh|bool(false)\n   and battery_signed_w|int(0)
+        < 0 }}"
+      zero_grid_resume_allowed: "{{ measurements_valid|bool(false) and grid_w|int(0)
+        == 0\n   and grid_zero_age_sec|int(0) >= 10\n   and grid_zero_samples_confirmed|bool(false)\n
+        \  and not grid_input_present_after_zero|bool(false)\n   and battery_raw_data_fresh|bool(false)\n
+        \  and battery_signed_w|int(0) >= 0 }}"
+  - variables:
+      basic_control_permitted: "{{ is_state('input_boolean.anenji_surplus_distribution_enabled','on')\n
+        \  and measurements_valid|bool(false)\n   and sun_above_horizon|bool(false)\n
+        \  and not weather_blocks_heating|bool(false)\n   and active_scheduled_need|bool(false)
+        }}"
+  - variables:
+      mode_change_required: "{{ basic_control_permitted|bool(false)\n   and inverter_mode_code|int(-1)
+        != desired_output_mode_code|int(3) }}"
+      control_permitted: "{{ basic_control_permitted|bool(false)\n   and inverter_mode_code|int(-1)
+        == desired_output_mode_code|int(3) }}"
+      probe_permitted: "{{ basic_control_permitted|bool(false)\n   and inverter_mode_code|int(-1)
+        == desired_output_mode_code|int(3) }}"
+      seconds_since_mode_request: "{% set saved = states('input_datetime.anenji_surplus_last_sub_request')
+        %} {% set last_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set now_ts = as_timestamp(now()) %} {{ 999
+        if last_ts <= 0 or last_ts > now_ts else (now_ts-last_ts)|int }}"
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ mode_change_required|bool(false) }}'
+      sequence:
+      - action: mqtt.publish
+        continue_on_error: true
+        data:
+          topic: homeassistant/anenji/surplus_power/esp32_pool_state
+          payload: '0'
+          qos: 1
+          retain: false
+      - action: mqtt.publish
+        continue_on_error: true
+        data:
+          topic: homeassistant/anenji/surplus_power/esp32_boiler_state
+          payload: '0'
+          qos: 1
+          retain: false
+      - action: input_number.set_value
+        target:
+          entity_id:
+          - input_number.anenji_dynamic_heater_limit_w
+          - input_number.anenji_dynamic_boiler_limit_w
+          - input_number.anenji_dynamic_pool_limit_w
+        data:
+          value: 0
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_baseline_sample_count
+        data:
+          value: 0
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_last_positive_step_w
+        data:
+          value: 0
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.anenji_surplus_distribution_status
+        data:
+          value: Переключение инвертора в {{ desired_output_mode }}; нагрузка нагревателей
+            0 Вт
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: "{{ (trigger is defined\n    and trigger.id == 'forced_mode_changed')\n
+              \  or seconds_since_mode_request|int(999) >= 10 }}"
+          sequence:
+          - action: script.anenji_inverter_write_single_config_to_modbus
+            data:
+              setting_id: p01
+              requested_value: '{{ desired_output_mode }}'
+          - action: input_datetime.set_datetime
+            target:
+              entity_id: input_datetime.anenji_surplus_last_sub_request
+            data:
+              datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+          - delay:
+              seconds: 1
+          - action: homeassistant.update_entity
+            target:
+              entity_id: sensor.prioritet_vykhoda_output_priority
+      - stop: Ожидание подтверждения фактического режима {{ desired_output_mode }}
+        error: false
+  - variables:
+      seconds_since_last_change: "{% set saved = states('input_datetime.anenji_dynamic_heater_limit_last_increase')
+        %} {% set last_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set now_ts = as_timestamp(now()) %} {{ 999
+        if last_ts <= 0 or last_ts > now_ts else (now_ts-last_ts)|int }}"
+      seconds_since_last_decrease: "{% set saved = states('input_datetime.anenji_surplus_last_decrease')
+        %} {% set last_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set now_ts = as_timestamp(now()) %} {{ 999
+        if last_ts <= 0 or last_ts > now_ts else (now_ts-last_ts)|int }}"
+      seconds_since_failed_probe: "{% set saved = states('input_datetime.anenji_surplus_last_failed_probe')
+        %} {% set last_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set now_ts = as_timestamp(now()) %} {{ 999
+        if last_ts <= 0 or last_ts > now_ts else (now_ts-last_ts)|int }}"
+      pv_probe_cooldown_active: "{{ pv_probe_retry_sec|int(10) > 0\n   and seconds_since_failed_probe|int(999)\n
+        \      < pv_probe_retry_sec|int(10) }}"
+      pv_feedback_after_last_change: "{% set saved = states('input_datetime.anenji_dynamic_heater_limit_last_increase')
+        %} {% set last_limit_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set pv_state = states.sensor.moshchnost_pv_pv_power
+        %} {% set pv_report_ts = as_timestamp(pv_state.last_reported, 0)\n   if pv_state
+        is defined and pv_state.last_reported is not none else 0 %}\n{{ pv_power_fresh|bool(false)\n
+        \  and pv_report_ts - last_limit_ts >= 1 }}"
+      pv_probe_failed: "{{ control_sample_is_new|bool(false)\n   and control_permitted|bool(false)\n
+        \  and previous_total_power|int(0) > 0\n   and grid_w|int(0) > grid_import_allowance_w|int(200)\n
+        \  and pv_power_fresh|bool(false)\n   and pv_feedback_after_last_change|bool(false)\n
+        \  and pv_w|int(0) < minimum_pv_power_w|int(300) }}"
+      baseline_sample_count: "{{ states('input_number.anenji_surplus_baseline_sample_count')\n
+        \  | int(0) }}"
+      saved_grid_baseline_w: "{{ states('input_number.anenji_surplus_grid_baseline_w')\n
+        \  | float(grid_w|int(0)) | round(0) | int }}"
+      saved_load_baseline_w: "{{ states('input_number.anenji_surplus_load_baseline_w')\n
+        \  | float(load_w|int(0)) | round(0) | int }}"
+      last_positive_step_w: "{{ states('input_number.anenji_surplus_last_positive_step_w')\n
+        \  | float(0) | round(0) | int }}"
+      pv_before_increase_w: "{{ states('input_number.anenji_surplus_pv_before_increase_w')\n
+        \  | float(pv_w|int(0)) | round(0) | int }}"
+      battery_feedback_after_last_change: "{% set saved = states('input_datetime.anenji_dynamic_heater_limit_last_increase')
+        %} {% set last_limit_ts = 0 if saved in\n  ['unknown','unavailable','none','','None']
+        else as_timestamp(saved,0) %}\n{% set current = states.sensor.tok_akb_znak_battery_current_signed_filtered
+        %} {% set current_report_ts = as_timestamp(current.last_reported, 0)\n   if
+        current is defined and current.last_reported is not none else 0 %}\n{{ battery_raw_data_fresh|bool(false)\n
+        \  and current_report_ts - last_limit_ts >= 1 }}"
+      grid_window_average_w: "{{ ((grid_w|int(0) + previous_grid_w|int(0)\n     +
+        previous_grid_2_w|int(0)) / 3) | round(0) | int }}"
+  - variables:
+      grid_baseline_w: "{% if previous_total_power|int(0) <= 0\n      and direct_export_available|bool(false)
+        %}\n  0\n{% elif previous_total_power|int(0) <= 0 %}\n  {% if baseline_sample_count|int(0)
+        >= 2 %}\n    {{ grid_window_average_w|int(grid_w|int(0)) }}\n  {% else %}\n
+        \   {{ grid_w|int(0) }}\n  {% endif %}\n{% else %}\n  {{ saved_grid_baseline_w|int(grid_w|int(0))
+        }}\n{% endif %}"
+      background_load_now_w: '{{ [load_w|int(0) - previous_total_power|int(0), 0]
+        | max | int }}'
+      background_load_drop_w: "{% if previous_total_power|int(0) > 0\n      and load_data_fresh|bool(false)\n
+        \     and saved_load_baseline_w|int(0) > 0 %}\n  {{ [saved_load_baseline_w|int(0)\n
+        \       - background_load_now_w|int(0), 0] | max | int }}\n{% else %} 0 {%
+        endif %}"
+      effective_grid_baseline_w: '{{ grid_baseline_w|int(0) - background_load_drop_w|int(0)
+        }}'
+      raw_added_grid_w: '{{ grid_w|int(0) - grid_baseline_w|int(0) }}'
+      average_added_grid_w: "{{ grid_window_average_w|int(0)\n   - effective_grid_baseline_w|int(0)
+        }}"
+      raw_target_total_w: "{% set cap = request_cap_w|int(0) %} {% set previous =
+        [[previous_total_power|int(0), 0] | max, cap] | min %} {% set allowance =
+        grid_import_allowance_w|int(200) %} {% set excess = [grid_w|int(0) - allowance,
+        0] | max %} {% set low_jitter_band = previous <= 350 and grid_w|int(0) <=
+        350 %} {% set previous_mild_high = previous_grid_w|int(0) > allowance\n      and
+        previous_grid_w|int(0) <= 350 %}\n{% if not control_permitted|bool(false)
+        %}\n  0\n{% elif battery_discharging|bool(false) %}\n  0\n{% elif pv_probe_cooldown_active|bool(false)\n
+        \     or pv_probe_failed|bool(false) %}\n  0\n{% elif grid_zero_for_5s|bool(false)\n
+        \     and not zero_grid_resume_allowed|bool(false) %}\n  0\n{% elif previous_total_power|int(0)
+        > cap %}\n  {{ cap }}\n{% elif not control_sample_is_new|bool(false) %}\n
+        \ {{ previous }}\n{% elif grid_w|int(0) == 0 %}\n  {% if zero_grid_resume_allowed|bool(false)\n
+        \       and battery_feedback_after_last_change|bool(false) %}\n    {# После
+        10 с без сети каждая ступень ждёт новый замер знакового тока АКБ. #}\n    {{
+        [previous + ramp_up_w|int(50), cap] | min | int }}\n  {% else %}\n    {# До
+        5 с нулевой Grid удерживает лимит; с 5 до 10 с он уже обнулён. #}\n    {{
+        previous }}\n  {% endif %}\n{% elif excess|int(0) > 0 and low_jitter_band\n
+        \     and not previous_mild_high %}\n  {# В шумной зоне первый умеренный скачок
+        только подтверждаем. #}\n  {{ previous }}\n{% elif excess|int(0) > 0 %}\n
+        \ {% if low_jitter_band %}\n    {# Два умеренных превышения подряд: снимаем
+        худшее подтверждённое. #}\n    {% set confirmed_grid = [grid_w|int(0), previous_grid_w|int(0)]
+        | max %}\n    {% set confirmed_excess = [confirmed_grid|int(0) - allowance,
+        0] | max %}\n    {{ [previous - confirmed_excess, 0] | max | int }}\n  {%
+        else %}\n    {# За пределами шумной зоны полная коррекция остаётся мгновенной.
+        #}\n    {{ [previous - excess, 0] | max | int }}\n  {% endif %}\n{% elif pv_low_filtered_hold|bool(false)\n
+        \     and not direct_export_available|bool(false) %}\n  {# Краткий провал
+        PV запрещает только новый набор; Grid и АКБ\n     выше уже сохранили немедленные
+        защитные снижения. #}\n  {{ previous }}\n{% else %}\n  {# Каждый новый RS232-замер
+        ниже/на пороге даёт ровно одну выбранную ступень. #}\n  {{ [previous + ramp_up_w|int(50),
+        cap] | min | int }}\n{% endif %}"
+  - variables:
+      final_total_w: "{% set candidate = raw_target_total_w|int(0) %} {% set cap =
+        request_cap_w|int(0) %} {% if not control_permitted|bool(false)\n      or
+        battery_discharging|bool(false)\n      or pv_probe_cooldown_active|bool(false)\n
+        \     or pv_probe_failed|bool(false)\n      or (grid_zero_for_5s|bool(false)\n
+        \         and not zero_grid_resume_allowed|bool(false)) %} 0\n{% else %} {{
+        [[candidate, 0] | max, cap] | min | int }} {% endif %}"
+      boiler_power_w: "{% if boiler_heating_allowed|bool(false) %}\n  {{ [final_total_w|int(0),
+        boiler_max_w|int(2000)] | min | int }}\n{% else %} 0 {% endif %}"
+      pool_power_w: "{% if pool_heating_allowed|bool(false) %}\n  {% set remainder
+        = [final_total_w|int(0)-boiler_power_w|int(0),0]|max %}\n  {{ [remainder,
+        pool_max_w|int(2525)] | min | int }}\n{% else %} 0 {% endif %}"
+      power_changed: '{{ final_total_w|int(0) != previous_total_power|int(0) }}'
+      power_increased: '{{ final_total_w|int(0) > previous_total_power|int(0) }}'
+      power_decreased: '{{ final_total_w|int(0) < previous_total_power|int(0) }}'
+      power_decreased_to_zero: '{{ pv_probe_failed|bool(false) }}'
+      status_text: "{% if not is_state('input_boolean.anenji_surplus_distribution_enabled','on')
+        %}\n  Отключено пользователем; оба лимита 0 Вт\n{% elif not measurements_valid|bool(false)
+        %}\n  Нет свежего Grid Power (мощности сети ТНС); оба лимита 0 Вт\n{% elif
+        not sun_above_horizon|bool(false) %}\n  Солнце ниже горизонта; оба лимита
+        0 Вт\n{% elif pv_low_filtered_hold|bool(false)\n      and not direct_export_available|bool(false)
+        %}\n  Фильтр краткого провала PV: сейчас {{ pv_w|int(0) }} Вт, порог\n  {{
+        minimum_pv_power_w|int(50) }} Вт; набор приостановлен до устойчивого\n  измерения,
+        лимит {{ final_total_w|int(0) }} Вт удерживается,\n  превышение Grid и разряд
+        АКБ по-прежнему обрабатываются немедленно\n{% elif false %}\n  Нет свежего
+        измерения мощности солнечных панелей; оба лимита 0 Вт\n{% elif pv_probe_failed|bool(false)\n
+        \     or pv_probe_cooldown_active|bool(false) %}\n  Мощность солнечных панелей
+        {{ pv_w|int(0) }} Вт ниже заданного порога\n  {{ minimum_pv_power_w|int(300)
+        }} Вт; оба лимита 0 Вт\n  {% set wait_left = pv_probe_retry_sec|int(10)\n
+        \    if pv_probe_failed|bool(false)\n     else [pv_probe_retry_sec|int(10)\n
+        \          - seconds_since_failed_probe|int(999), 0] | max %}\n  Проба подтверждена
+        превышением допустимого импорта ТНС;\n  Таймер до следующей попытки {{ wait_left|int(0)
+        }} сек\n{% elif weather_blocks_heating|bool(false) %}\n  Ограничение по погоде:
+        {{ weather_block_reason }}; оба лимита 0 Вт\n{% elif not active_need|bool(false)
+        %}\n  {% if boiler_need_state in ['unknown','unavailable']\n        or pool_need_state
+        in ['unknown','unavailable'] %}\n    Нет связи с одним из запросов нагрева;
+        активных запросов нет\n  {% else %} Бойлеру и бассейну нагрев сейчас не требуется\n
+        \ {% endif %}\n{% elif not active_scheduled_need|bool(false) %}\n  Есть запрос
+        нагрева, но сейчас вне заданного окна работы бойлера/бассейна;\n  оба лимита
+        0 Вт\n{% elif inverter_mode_code|int(-1) != desired_output_mode_code|int(3)
+        %}\n  Переключение Program 01 в {{ desired_output_mode }}; до подтверждения\n
+        \ оба лимита 0 Вт\n{% elif battery_discharging|bool(false) %}\n  Защита АКБ:
+        мощность {{ battery_signed_w|int(0) }} Вт (разряд); оба лимита 0 Вт\n{% elif
+        grid_zero_for_10s|bool(false)\n      and not battery_raw_data_fresh|bool(false)
+        %}\n  Grid Power = 0 Вт более 10 с; нет свежих данных АКБ, оба лимита 0 Вт\n{%
+        elif grid_zero_for_10s|bool(false) %}\n  Grid Power = 0 Вт более 10 с; АКБ
+        {{ battery_signed_w|int(0) }} Вт\n  (заряд/без разряда); набор по {{ ramp_up_w|int(50)
+        }} Вт только после нового замера АКБ\n{% elif grid_zero_for_5s|bool(false)
+        %}\n  Защита ТНС: Grid Power = 0 Вт 5–10 с в {{ desired_output_mode }};\n
+        \ оба лимита 0 Вт\n{% elif grid_w|int(0) == 0\n      and grid_input_present_after_zero|bool(false)
+        %}\n  Ошибочный Grid Power = 0 Вт отброшен: после этого замера вход ТНС\n
+        \ подтверждён ({{ grid_voltage_v|round(1) }} В,\n  {{ grid_frequency_hz|round(2)
+        }} Гц); набор остановлен,\n  действующий лимит {{ final_total_w|int(0) }}
+        Вт удерживается\n{% elif grid_w|int(0) == 0 %}\n  Проверка Grid Power = 0
+        Вт ({{ grid_zero_age_sec|int(0) }} с,\n  подтверждений {{ 'достаточно' if
+        grid_zero_samples_confirmed|bool(false)\n  else 'ещё недостаточно' }}); набор
+        остановлен,\n  действующий лимит {{ final_total_w|int(0) }} Вт удерживается\n{%
+        elif final_total_w|int(0) <= 0 %}\n  {{ desired_output_mode }}: Grid ТНС {{
+        grid_w|int(0) }} Вт, уставка\n  {{ grid_import_allowance_w|int(200) }} Вт;
+        следующая ступень\n  {{ ramp_up_w|int(50) }} Вт\n{% else %}\n  {{ desired_output_mode
+        }}: Grid ТНС {{ grid_w|int(0) }} Вт (уставка\n  {{ grid_import_allowance_w|int(200)
+        }}), Load {{ load_w|int(0) }} Вт\n  (только индикация); лимит {{ final_total_w|int(0)
+        }} Вт:\n  бойлер {{ boiler_power_w|int(0) }}, бассейн {{ pool_power_w|int(0)
+        }}\n  {% if boiler_need_filtered_hold|bool(false)\n        or pool_need_filtered_hold|bool(false)
+        %}\n    ; краткий off/unavailable запроса удерживается 5-секундным фильтром\n
+        \ {% endif %}\n{% endif %}"
+  - action: mqtt.publish
+    continue_on_error: true
+    data:
+      topic: homeassistant/anenji/surplus_power/esp32_pool_state
+      payload: '{{ pool_power_w|int(0) }}'
+      qos: 1
+      retain: false
+  - action: mqtt.publish
+    continue_on_error: true
+    data:
+      topic: homeassistant/anenji/surplus_power/esp32_boiler_state
+      payload: '{{ boiler_power_w|int(0) }}'
+      qos: 1
+      retain: false
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.anenji_dynamic_heater_limit_w
+    data:
+      value: '{{ final_total_w|int(0) }}'
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.anenji_dynamic_boiler_limit_w
+    data:
+      value: '{{ boiler_power_w|int(0) }}'
+  - action: input_number.set_value
+    target:
+      entity_id: input_number.anenji_dynamic_pool_limit_w
+    data:
+      value: '{{ pool_power_w|int(0) }}'
+  - action: input_text.set_value
+    target:
+      entity_id: input_text.anenji_surplus_distribution_status
+    data:
+      value: '{{ status_text|string|truncate(255,true,'''') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ control_sample_is_new|bool(false)\n   and control_permitted|bool(false)\n
+          \  and previous_total_power|int(0) <= 0 }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_grid_baseline_w
+        data:
+          value: '{{ grid_baseline_w|int(grid_w|int(0)) }}'
+      - choose:
+        - conditions:
+          - condition: template
+            value_template: '{{ load_data_fresh|bool(false) }}'
+          sequence:
+          - action: input_number.set_value
+            target:
+              entity_id: input_number.anenji_surplus_load_baseline_w
+            data:
+              value: '{{ load_w|int(0) }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_baseline_sample_count
+        data:
+          value: '{{ [baseline_sample_count|int(0)+1, 5] | min }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ control_sample_is_new|bool(false) }}'
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_previous_grid_2_w
+        data:
+          value: '{{ previous_grid_w|int(grid_w|int(0)) }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_previous_grid_w
+        data:
+          value: '{{ grid_w|int(0) }}'
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.anenji_surplus_last_grid_report_token
+        data:
+          value: '{{ grid_report_token }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ control_sample_is_new|bool(false)\n   and control_permitted|bool(false)\n
+          \  and previous_total_power|int(0) > 0\n   and not power_changed|bool(false)
+          }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_baseline_sample_count
+        data:
+          value: '{{ [baseline_sample_count|int(0)+1, 3] | min }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: "{{ not control_permitted|bool(false)\n   or power_changed|bool(false)
+          }}"
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_baseline_sample_count
+        data:
+          value: 0
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ power_changed|bool(false) }}'
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.anenji_dynamic_heater_limit_last_increase
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ power_decreased|bool(false) }}'
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.anenji_surplus_last_decrease
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ power_decreased_to_zero|bool(false) }}'
+      sequence:
+      - action: input_datetime.set_datetime
+        target:
+          entity_id: input_datetime.anenji_surplus_last_failed_probe
+        data:
+          datetime: '{{ now().strftime(''%Y-%m-%d %H:%M:%S'') }}'
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ power_increased|bool(false) }}'
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_last_positive_step_w
+        data:
+          value: '{{ final_total_w|int(0) - previous_total_power|int(0) }}'
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_pv_before_increase_w
+        data:
+          value: '{{ [pv_w|int(0), 0] | max }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ power_decreased|bool(false) }}'
+      sequence:
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.anenji_surplus_last_positive_step_w
+        data:
+          value: 0
+  mode: single
+  max_exceeded: silent
+- id: anenji_dynamic_heater_limit_solar_scheduler
+  alias: ANENJI — ожидание регулятора избытка вне солнечной генерации
+  description: Включает секундный регулятор избытка только днём и когда распределение
+    разрешено пользователем. После заката, при ручном отключении и после перезагрузки
+    ночью один раз обнуляет лимиты и отключает сам регулятор, поэтому обновления Grid
+    Power больше не создают частых запусков на Raspberry Pi.
+  initial_state: true
+  triggers:
+  - trigger: homeassistant
+    event: start
+    id: home_assistant_start
+  - trigger: event
+    event_type: automation_reloaded
+    id: automations_reloaded
+  - trigger: sun
+    event: sunrise
+    id: sunrise
+  - trigger: sun
+    event: sunset
+    id: sunset
+  - trigger: state
+    entity_id: input_boolean.anenji_surplus_distribution_enabled
+    id: distribution_enabled_changed
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: home_assistant_start
+      sequence:
+      - delay:
+          seconds: 5
+  - variables:
+      controller_should_run: "{{ is_state('sun.sun', 'above_horizon')\n   and is_state('input_boolean.anenji_surplus_distribution_enabled',
+        'on') }}"
+      standby_status: "{{ 'Отключено пользователем; оба лимита 0 Вт'\n   if is_state('input_boolean.anenji_surplus_distribution_enabled',
+        'off')\n   else 'Солнце ниже горизонта; оба лимита 0 Вт' }}"
+  - if:
+    - condition: template
+      value_template: '{{ controller_should_run | bool(false) }}'
+    then:
+    - if:
+      - condition: state
+        entity_id: automation.anenji_raspredelenie_limita_moshchnosti_boileru_i_ili_basseinu
+        state: 'off'
+      then:
+      - action: automation.turn_on
+        target:
+          entity_id: automation.anenji_raspredelenie_limita_moshchnosti_boileru_i_ili_basseinu
+      - action: automation.trigger
+        target:
+          entity_id: automation.anenji_raspredelenie_limita_moshchnosti_boileru_i_ili_basseinu
+        data:
+          skip_condition: false
+    else:
+    - action: automation.turn_off
+      target:
+        entity_id: automation.anenji_raspredelenie_limita_moshchnosti_boileru_i_ili_basseinu
+      data:
+        stop_actions: true
+    - action: mqtt.publish
+      continue_on_error: true
+      data:
+        topic: homeassistant/anenji/surplus_power/esp32_pool_state
+        payload: '0'
+        qos: 1
+        retain: false
+    - action: mqtt.publish
+      continue_on_error: true
+      data:
+        topic: homeassistant/anenji/surplus_power/esp32_boiler_state
+        payload: '0'
+        qos: 1
+        retain: false
+    - action: input_number.set_value
+      target:
+        entity_id:
+        - input_number.anenji_dynamic_heater_limit_w
+        - input_number.anenji_dynamic_boiler_limit_w
+        - input_number.anenji_dynamic_pool_limit_w
+      data:
+        value: 0
+    - action: input_number.set_value
+      target:
+        entity_id:
+        - input_number.anenji_surplus_baseline_sample_count
+        - input_number.anenji_surplus_last_positive_step_w
+      data:
+        value: 0
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.anenji_surplus_distribution_status
+      data:
+        value: '{{ standby_status }}'
+  mode: restart
+  max_exceeded: silent
+- alias: Автообновление SSL-сертификатов
+  description: Раз в месяц запускает shell_command.letsencrypt_restart, чтобы планово
+    обновлять SSL-сертификаты без ручного вмешательства.
+  trigger:
+  - platform: time
+    at: 04:05:00
+  condition:
+  - condition: template
+    value_template: '{{ now().day == 1 }}'
+  action:
+  - service: shell_command.letsencrypt_restart
+  mode: single
+  id: a2a6306b357a4104bee301504916f164
+- id: '1744877016258'
+  alias: LED гирлянда - включить на 4 часа по заходу солнца
+  description: После захода солнца включает две LED-гирлянды, держит их включёнными
+    7 часов и затем повторно проверяет/выключает, пока обе линии точно не погаснут.
+  triggers:
+  - trigger: sun
+    event: sunset
+  conditions: []
+  actions:
+  - type: turn_on
+    device_id: a66bb8c86d983a5e6cc45254213ff7f5
+    entity_id: a3296c879ecaf469e56e95cd4019312e
+    domain: switch
+  - type: turn_on
+    device_id: dbb3648a098cec2bf769e4c9aeb0f7f3
+    entity_id: 223b9186ac87cd8b658c018088a4f23c
+    domain: switch
+  - delay:
+      hours: 7
+      minutes: 0
+      seconds: 0
+      milliseconds: 0
+  - type: turn_off
+    device_id: a66bb8c86d983a5e6cc45254213ff7f5
+    entity_id: a3296c879ecaf469e56e95cd4019312e
+    domain: switch
+  - type: turn_off
+    device_id: dbb3648a098cec2bf769e4c9aeb0f7f3
+    entity_id: 223b9186ac87cd8b658c018088a4f23c
+    domain: switch
+  - repeat:
+      while:
+      - condition: or
+        conditions:
+        - condition: device
+          type: is_on
+          device_id: a66bb8c86d983a5e6cc45254213ff7f5
+          entity_id: a3296c879ecaf469e56e95cd4019312e
+          domain: switch
+        - condition: device
+          type: is_on
+          device_id: dbb3648a098cec2bf769e4c9aeb0f7f3
+          entity_id: 223b9186ac87cd8b658c018088a4f23c
+          domain: switch
+      sequence:
+      - delay:
+          hours: 0
+          minutes: 10
+          seconds: 0
+          milliseconds: 0
+      - type: turn_off
+        device_id: a66bb8c86d983a5e6cc45254213ff7f5
+        entity_id: a3296c879ecaf469e56e95cd4019312e
+        domain: switch
+      - type: turn_off
+        device_id: dbb3648a098cec2bf769e4c9aeb0f7f3
+        entity_id: 223b9186ac87cd8b658c018088a4f23c
+        domain: switch
+  mode: single
+- id: '1770485914812'
+  alias: '!!! Охрана - датчики Душевая/Коридор + присутствие дома'
+  description: 'Объединённая автоматизация вместо "1 - Определение присутствия дома"
+    и "!!! Сообщение - датчик Коридор": постановка/снятие охраны с Wall Tablet, обновление
+    статуса присутствия и повторные уведомления по датчикам Душевой/Коридора, пока
+    охрана не деактивирована.'
+  triggers:
+  - trigger: state
+    entity_id: input_boolean.wall_tablet_guard_mode
+    to: 'on'
+    id: guard_on
+  - trigger: state
+    entity_id: input_boolean.wall_tablet_guard_mode
+    to: 'off'
+    id: guard_off
+  - trigger: state
+    entity_id: binary_sensor.0xa4c138f7e37d6f18_presence
+    to: 'on'
+    id: shower_motion
+  - trigger: state
+    entity_id: binary_sensor.0xa4c1386eefaf7d8e_presence
+    to: 'on'
+    id: yard_motion
+  - trigger: state
+    entity_id: binary_sensor.0xa4c138a30a8c8616_presence
+    to: 'on'
+    id: corridor_motion
+  conditions: []
+  actions:
+  - choose:
+    - conditions:
+      - condition: trigger
+        id: guard_on
+      sequence:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.prisutstvie_doma
+        data:
+          value: Нет дома
+      - service: notify.notify
+        data:
+          message: "\U0001F6E1️ Охрана включена на Wall Tablet."
+    - conditions:
+      - condition: trigger
+        id: guard_off
+      sequence:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.prisutstvie_doma
+        data:
+          value: Дома
+      - service: notify.notify
+        data:
+          message: ✅ Охрана выключена на Wall Tablet.
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.id in [''shower_motion'', ''yard_motion'', ''corridor_motion'']
+          }}'
+      - condition: state
+        entity_id: input_boolean.wall_tablet_guard_mode
+        state: 'on'
+      sequence:
+      - variables:
+          sensor_name: "{{ {\n  'shower_motion': 'Душевая',\n  'yard_motion': 'Двор',\n
+            \ 'corridor_motion': 'Коридор'\n}[trigger.id] }}"
+      - service: notify.notify
+        data:
+          message: "\U0001F6A8 Охрана: сработал датчик {{ sensor_name }}."
+      - repeat:
+          while:
+          - condition: state
+            entity_id: input_boolean.wall_tablet_guard_mode
+            state: 'on'
+          - condition: template
+            value_template: '{{ is_state(trigger.entity_id, ''on'') }}'
+          sequence:
+          - delay: 00:02:00
+          - condition: state
+            entity_id: input_boolean.wall_tablet_guard_mode
+            state: 'on'
+          - condition: template
+            value_template: '{{ is_state(trigger.entity_id, ''on'') }}'
+          - service: notify.notify
+            data:
+              message: "\U0001F6A8 Охрана активна: датчик {{ sensor_name }} всё ещё
+                в тревоге."
+  mode: parallel
+  max: 10
+- id: '1762115307663'
+  alias: Подсветка зеркала в душевой по датчику присутствия
+  description: В любое время суток включает подсветку зеркала в душевой по датчику
+    присутствия и выключает её через 20 секунд после ухода человека.
+  triggers:
+  - type: occupied
+    device_id: fbc0d0ce625b60fc9059a293766db99d
+    entity_id: 19ae68147d17a3978927eaf9b38c37c4
+    domain: binary_sensor
+    trigger: device
+    for:
+      hours: 0
+      minutes: 0
+      seconds: 0
+  conditions: []
+  actions:
+  - type: turn_on
+    device_id: c403a10a291b06108c5600ae70914c06
+    entity_id: 108b362f1309451386a3c5b4c71e968f
+    domain: switch
+  - wait_for_trigger:
+    - type: not_occupied
+      device_id: fbc0d0ce625b60fc9059a293766db99d
+      entity_id: 19ae68147d17a3978927eaf9b38c37c4
+      domain: binary_sensor
+      trigger: device
+      for:
+        hours: 0
+        minutes: 0
+        seconds: 20
+  - type: turn_off
+    device_id: c403a10a291b06108c5600ae70914c06
+    entity_id: 108b362f1309451386a3c5b4c71e968f
+    domain: switch
+  mode: single
+- id: anenji_refresh_solar_heating_schedule
+  alias: ANENJI · Обновление времени солнца и расписаний нагрева
+  description: Один раз задаёт безопасные начальные значения новых расписаний (09:00–16:00,
+    ручное время, сдвиг 0 минут, порог PV 50 Вт), затем хранит выбор пользователя.
+    Также ежедневно сохраняет сегодняшние восход и закат для окон бойлера и бассейна.
+  initial_state: true
+  triggers:
+  - trigger: homeassistant
+    event: start
+    id: home_assistant_start
+  - trigger: time
+    at: 00:01:00
+    id: new_day
+  - trigger: state
+    entity_id:
+    - sensor.sun_next_rising
+    - sensor.sun_next_setting
+    id: sun_times_changed
+  conditions: []
+  actions:
+  - if:
+    - condition: state
+      entity_id: input_boolean.anenji_surplus_schedule_defaults_initialized
+      state: 'off'
+    then:
+    - action: input_select.select_option
+      target:
+        entity_id:
+        - input_select.anenji_surplus_boiler_start_reference
+        - input_select.anenji_surplus_boiler_end_reference
+        - input_select.anenji_surplus_pool_start_reference
+        - input_select.anenji_surplus_pool_end_reference
+      data:
+        option: Ручное время
+    - action: input_datetime.set_datetime
+      target:
+        entity_id:
+        - input_datetime.anenji_surplus_boiler_start_time
+        - input_datetime.anenji_surplus_pool_start_time
+      data:
+        time: 09:00:00
+    - action: input_datetime.set_datetime
+      target:
+        entity_id:
+        - input_datetime.anenji_surplus_boiler_end_time
+        - input_datetime.anenji_surplus_pool_end_time
+      data:
+        time: '16:00:00'
+    - action: input_number.set_value
+      target:
+        entity_id:
+        - input_number.anenji_surplus_boiler_start_solar_offset_min
+        - input_number.anenji_surplus_boiler_end_solar_offset_min
+        - input_number.anenji_surplus_pool_start_solar_offset_min
+        - input_number.anenji_surplus_pool_end_solar_offset_min
+      data:
+        value: 0
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.anenji_surplus_minimum_pv_power_w
+      data:
+        value: 300
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.anenji_surplus_failed_probe_retry_sec
+      data:
+        value: 10
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.anenji_surplus_schedule_defaults_initialized
+  - if:
+    - condition: state
+      entity_id: input_boolean.anenji_surplus_pv_probe_defaults_initialized
+      state: 'off'
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.anenji_surplus_failed_probe_retry_sec
+      data:
+        value: 10
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.anenji_surplus_pv_probe_defaults_initialized
+  - if:
+    - condition: template
+      value_template: "{{ has_value('sensor.sun_next_rising')\n   and has_value('sensor.sun_next_setting')
+        }}"
+    then:
+    - variables:
+        sunrise_today: "{% set event = as_local(as_datetime(states('sensor.sun_next_rising')))
+          %} {% set today = now().date() %} {{ (event - timedelta(days=1)).strftime('%Y-%m-%d
+          %H:%M:%S')\n   if event.date() > today else event.strftime('%Y-%m-%d %H:%M:%S')
+          }}"
+        sunset_today: "{% set event = as_local(as_datetime(states('sensor.sun_next_setting')))
+          %} {% set today = now().date() %} {{ (event - timedelta(days=1)).strftime('%Y-%m-%d
+          %H:%M:%S')\n   if event.date() > today else event.strftime('%Y-%m-%d %H:%M:%S')
+          }}"
+        sunrise_option: Восход солнца
+        sunset_option: Закат солнца
+        boiler_start_option: "{% set source = states('input_select.anenji_surplus_boiler_start_reference')
+          %} {{ sunrise_option if source.startswith('Восход солнца')\n   else sunset_option
+          if source.startswith('Закат солнца')\n   else 'Ручное время' }}"
+        boiler_end_option: "{% set source = states('input_select.anenji_surplus_boiler_end_reference')
+          %} {{ sunrise_option if source.startswith('Восход солнца')\n   else sunset_option
+          if source.startswith('Закат солнца')\n   else 'Ручное время' }}"
+        pool_start_option: "{% set source = states('input_select.anenji_surplus_pool_start_reference')
+          %} {{ sunrise_option if source.startswith('Восход солнца')\n   else sunset_option
+          if source.startswith('Закат солнца')\n   else 'Ручное время' }}"
+        pool_end_option: "{% set source = states('input_select.anenji_surplus_pool_end_reference')
+          %} {{ sunrise_option if source.startswith('Восход солнца')\n   else sunset_option
+          if source.startswith('Закат солнца')\n   else 'Ручное время' }}"
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.anenji_surplus_sunrise_today
+      data:
+        datetime: '{{ sunrise_today }}'
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.anenji_surplus_sunset_today
+      data:
+        datetime: '{{ sunset_today }}'
+    - action: input_select.set_options
+      target:
+        entity_id:
+        - input_select.anenji_surplus_boiler_start_reference
+        - input_select.anenji_surplus_boiler_end_reference
+        - input_select.anenji_surplus_pool_start_reference
+        - input_select.anenji_surplus_pool_end_reference
+      data:
+        options:
+        - Ручное время
+        - '{{ sunrise_option }}'
+        - '{{ sunset_option }}'
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.anenji_surplus_boiler_start_reference
+      data:
+        option: '{{ boiler_start_option }}'
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.anenji_surplus_boiler_end_reference
+      data:
+        option: '{{ boiler_end_option }}'
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.anenji_surplus_pool_start_reference
+      data:
+        option: '{{ pool_start_option }}'
+    - action: input_select.select_option
+      target:
+        entity_id: input_select.anenji_surplus_pool_end_reference
+      data:
+        option: '{{ pool_end_option }}'
+  mode: single
+  max_exceeded: silent
+- id: weather_rain_delay_all_irrigation_zones
+  alias: Автополив — единый контроль отсрочек
+  description: Хранит абсолютное время окончания погодной отсрочки и объединяет
+    все причины блокировки полива — осадки, ручной режим, зиму и 0% по температуре.
+    Повторяет MQTT-команду всем зонам POLIV1 и POLIV2, поэтому суточный сброс ESP32
+    или случайное выключение одной отсрочки не отменяет действующую блокировку.
+  initial_state: true
+  triggers:
+  - trigger: state
+    entity_id:
+    - sensor.irrigation_open_meteo_rain_intensity
+    - sensor.irrigation_combined_rain_24h
+    - input_number.irrigation_rain_delay_hours_per_mm
+    to:
+    id: rain_or_settings_changed
+  - trigger: state
+    entity_id:
+    - input_boolean.irrigation_force_delay_until_midnight
+    - input_boolean.irrigation_winter_mode
+    - input_boolean.irrigation_temperature_zero_hold
+    to:
+    id: safety_hold_changed
+  - trigger: template
+    value_template: >-
+      {% set end_ts = state_attr('input_datetime.irrigation_rain_delay_until', 'timestamp') | float(0) %}
+      {% set deadline_valid = has_value('input_datetime.irrigation_rain_delay_until') %}
+      {% set hold = is_state('input_boolean.irrigation_force_delay_until_midnight', 'on')
+           or is_state('input_boolean.irrigation_winter_mode', 'on')
+           or is_state('input_boolean.irrigation_temperature_zero_hold', 'on')
+           or end_ts > as_timestamp(now())
+           or (is_state('input_boolean.irrigation_rain_delay_command_active', 'on') and not deadline_valid) %}
+      {{ hold and expand(
+           'switch.poliv_zona_1_otsrochka_poliva',
+           'switch.poliv_zona_2_otsrochka_poliva',
+           'switch.poliv_zona_3_otsrochka_poliva',
+           'switch.poliv_zona_4_otsrochka_poliva',
+           'switch.poliv_zona_1_otsrochka_poliva_2',
+           'switch.poliv_zona_2_otsrochka_poliva_2',
+           'switch.poliv_zona_3_otsrochka_poliva_2',
+           'switch.poliv_zona_4_otsrochka_poliva_2')
+         | selectattr('state', 'eq', 'off') | list | count > 0 }}
+    id: controller_delay_reset
+  - trigger: time_pattern
+    minutes: /1
+    id: heartbeat
+  - trigger: time
+    at: input_datetime.irrigation_rain_delay_until
+    id: calculated_delay_ended
+  - trigger: time
+    at: '23:59:55'
+    id: reset_manual_delay
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  actions:
+  - if:
+    - condition: trigger
+      id: reset_manual_delay
+    then:
+    - action: input_boolean.turn_off
+      target:
+        entity_id: input_boolean.irrigation_force_delay_until_midnight
+  - if:
+    - condition: trigger
+      id: ha_start
+    - condition: template
+      value_template: '{{ not is_state(''input_boolean.irrigation_rain_delay_coefficient_initialized'',
+        ''on'') }}'
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.irrigation_rain_delay_hours_per_mm
+      data:
+        value: 4.8
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.irrigation_rain_delay_coefficient_initialized
+  - if:
+    - condition: trigger
+      id: ha_start
+    - condition: template
+      value_template: '{{ not is_state(''input_boolean.irrigation_rain_delay_defaults_initialized'',
+        ''on'') }}'
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.irrigation_rain_delay_preserve_mask
+      data:
+        value: 0
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.irrigation_rain_delay_defaults_initialized
+  - if:
+    - condition: trigger
+      id: ha_start
+    then:
+    - delay:
+        seconds: 15
+  - variables:
+      now_ts: '{{ as_timestamp(now()) }}'
+      current_rain_valid: '{{ is_number(states(''sensor.irrigation_combined_rain_24h''))
+        }}'
+      current_rain_mm: '{{ states(''sensor.irrigation_combined_rain_24h'') | float(0)
+        }}'
+      previous_rain_mm: '{{ states(''input_number.irrigation_rain_delay_previous_24h_mm'')
+        | float(0) }}'
+      amount_initialized: '{{ is_state(''input_boolean.irrigation_rain_delay_amount_initialized'',
+        ''on'') }}'
+      coefficient_hours_per_mm: '{{ states(''input_number.irrigation_rain_delay_hours_per_mm'')
+        | float(0) }}'
+      stored_end_ts: '{{ state_attr(''input_datetime.irrigation_rain_delay_until'',
+        ''timestamp'') | float(0) }}'
+      deadline_valid: "{{ has_value('input_datetime.irrigation_rain_delay_until')\n
+        \  and is_number(state_attr('input_datetime.irrigation_rain_delay_until',
+        'timestamp')) }}"
+      manual_active: '{{ is_state(''input_boolean.irrigation_force_delay_until_midnight'',
+        ''on'') }}'
+      winter_active: '{{ is_state(''input_boolean.irrigation_winter_mode'', ''on'') }}'
+      temperature_zero_hold_active: '{{ is_state(''input_boolean.irrigation_temperature_zero_hold'',
+        ''on'') }}'
+      command_active: '{{ is_state(''input_boolean.irrigation_rain_delay_command_active'',
+        ''on'') }}'
+  - variables:
+      new_rain_mm: "{% if not current_rain_valid | bool(false) %}\n  0\n{% elif not
+        amount_initialized | bool(false) %}\n  {{ current_rain_mm | float(0) }}\n{%
+        else %}\n  {{ [current_rain_mm | float(0) - previous_rain_mm | float(0), 0]
+        | max }}\n{% endif %}"
+  - if:
+    - condition: template
+      value_template: '{{ current_rain_valid | bool(false) }}'
+    then:
+    - action: input_number.set_value
+      target:
+        entity_id: input_number.irrigation_rain_delay_previous_24h_mm
+      data:
+        value: '{{ current_rain_mm | float(0) }}'
+    - action: input_boolean.turn_on
+      target:
+        entity_id: input_boolean.irrigation_rain_delay_amount_initialized
+  - variables:
+      added_delay_hours: '{{ new_rain_mm | float(0) * coefficient_hours_per_mm | float(0)
+        }}'
+      candidate_end_ts: "{% if new_rain_mm | float(0) > 0 and coefficient_hours_per_mm
+        | float(0) > 0 %}\n  {{ [stored_end_ts | float(0), now_ts | float(0)] | max\n
+        \    + new_rain_mm | float(0) * coefficient_hours_per_mm | float(0) * 3600
+        }}\n{% else %}\n  0\n{% endif %}"
+  - if:
+    - condition: template
+      value_template: '{{ candidate_end_ts | float(0) > stored_end_ts | float(0) }}'
+    then:
+    - action: input_datetime.set_datetime
+      target:
+        entity_id: input_datetime.irrigation_rain_delay_until
+      data:
+        timestamp: '{{ candidate_end_ts }}'
+  - variables:
+      effective_end_ts: '{{ [stored_end_ts | float(0), candidate_end_ts | float(0)]
+        | max }}'
+      hold_active: >-
+        {{ manual_active | bool(false)
+           or winter_active | bool(false)
+           or temperature_zero_hold_active | bool(false)
+           or effective_end_ts | float(0) > now_ts | float(0)
+           or (command_active | bool(false) and not deadline_valid | bool(false)) }}
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ hold_active | bool(false) }}'
+      sequence:
+      - if:
+        - condition: state
+          entity_id: input_boolean.irrigation_rain_delay_command_active
+          state: 'off'
+        then:
+        - variables:
+            preserve_mask: "{% set switches = [\n     ('switch.poliv_zona_1_otsrochka_poliva',
+              1),\n     ('switch.poliv_zona_2_otsrochka_poliva', 2),\n     ('switch.poliv_zona_3_otsrochka_poliva',
+              4),\n     ('switch.poliv_zona_4_otsrochka_poliva', 8),\n     ('switch.poliv_zona_1_otsrochka_poliva_2',
+              16),\n     ('switch.poliv_zona_2_otsrochka_poliva_2', 32),\n     ('switch.poliv_zona_3_otsrochka_poliva_2',
+              64),\n     ('switch.poliv_zona_4_otsrochka_poliva_2', 128) ] %}\n{%
+              set ns = namespace(mask = 0) %} {% for entity_id, bit in switches %}\n
+              \ {% if not is_state(entity_id, 'off') %}\n    {% set ns.mask = ns.mask
+              + bit %}\n  {% endif %}\n{% endfor %} {{ ns.mask }}"
+        - action: input_number.set_value
+          target:
+            entity_id: input_number.irrigation_rain_delay_preserve_mask
+          data:
+            value: '{{ preserve_mask }}'
+        - action: input_boolean.turn_on
+          target:
+            entity_id: input_boolean.irrigation_rain_delay_command_active
+      - action: switch.turn_on
+        alias: Повторить MQTT-команду отсрочки всем зонам
+        continue_on_error: true
+        target:
+          entity_id:
+          - switch.poliv_zona_1_otsrochka_poliva
+          - switch.poliv_zona_2_otsrochka_poliva
+          - switch.poliv_zona_3_otsrochka_poliva
+          - switch.poliv_zona_4_otsrochka_poliva
+          - switch.poliv_zona_1_otsrochka_poliva_2
+          - switch.poliv_zona_2_otsrochka_poliva_2
+          - switch.poliv_zona_3_otsrochka_poliva_2
+          - switch.poliv_zona_4_otsrochka_poliva_2
+    default:
+    - condition: state
+      entity_id: input_boolean.irrigation_rain_delay_command_active
+      state: 'on'
+    - variables:
+        owned_entities: "{% set mask = states('input_number.irrigation_rain_delay_preserve_mask')
+          | int(0) %} {% set switches = [\n     ('switch.poliv_zona_1_otsrochka_poliva',
+          1),\n     ('switch.poliv_zona_2_otsrochka_poliva', 2),\n     ('switch.poliv_zona_3_otsrochka_poliva',
+          4),\n     ('switch.poliv_zona_4_otsrochka_poliva', 8),\n     ('switch.poliv_zona_1_otsrochka_poliva_2',
+          16),\n     ('switch.poliv_zona_2_otsrochka_poliva_2', 32),\n     ('switch.poliv_zona_3_otsrochka_poliva_2',
+          64),\n     ('switch.poliv_zona_4_otsrochka_poliva_2', 128) ] %}\n{% set
+          ns = namespace(entities = []) %} {% for entity_id, bit in switches %}\n
+          \ {% if ((mask // bit) % 2) == 0 %}\n    {% set ns.entities = ns.entities
+          + [entity_id] %}\n  {% endif %}\n{% endfor %} {{ ns.entities }}"
+    - if:
+      - condition: template
+        value_template: '{{ owned_entities | count > 0 }}'
+      then:
+      - repeat:
+          sequence:
+          - action: switch.turn_off
+            alias: Снять завершённую погодную отсрочку
+            continue_on_error: true
+            target:
+              entity_id: '{{ owned_entities }}'
+          - wait_template: "{{ expand(owned_entities)\n   | rejectattr('state', 'eq',
+              'off') | list | count == 0 }}"
+            timeout: 00:00:04
+            continue_on_timeout: true
+          until:
+          - condition: template
+            value_template: "{{ expand(owned_entities)\n     | rejectattr('state',
+              'eq', 'off') | list | count == 0\n   or repeat.index >= 3 }}"
+    - if:
+      - condition: template
+        value_template: "{{ owned_entities | count == 0\n   or expand(owned_entities)\n
+          \    | rejectattr('state', 'eq', 'off') | list | count == 0 }}"
+      then:
+      - action: input_boolean.turn_off
+        target:
+          entity_id: input_boolean.irrigation_rain_delay_command_active
+      - action: input_number.set_value
+        target:
+          entity_id: input_number.irrigation_rain_delay_preserve_mask
+        data:
+          value: 0
+  mode: queued
+  max: 30
+  max_exceeded: silent
+- id: irrigation_weather_location_settings
+  alias: Автополив — применить место определения осадков
+  description: Находит координаты указанного адреса, применяет их по нажатию и немедленно
+    обновляет погодный запрос после изменения адреса или координат.
+  initial_state: true
+  triggers:
+  - trigger: state
+    entity_id:
+    - input_text.irrigation_weather_address
+    - input_text.irrigation_weather_latitude
+    - input_text.irrigation_weather_longitude
+    - input_button.irrigation_apply_address_location
+  - trigger: homeassistant
+    event: start
+  actions:
+  - if:
+    - condition: template
+      value_template: '{{ states(''input_text.irrigation_weather_address'') in [''unknown'',
+        ''unavailable''] }}'
+    then:
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.irrigation_weather_address
+      data:
+        value: ''
+  - if:
+    - condition: template
+      value_template: '{{ states(''input_text.irrigation_weather_latitude'') in [''unknown'',
+        ''unavailable''] }}'
+    then:
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.irrigation_weather_latitude
+      data:
+        value: ''
+  - if:
+    - condition: template
+      value_template: '{{ states(''input_text.irrigation_weather_longitude'') in [''unknown'',
+        ''unavailable''] }}'
+    then:
+    - action: input_text.set_value
+      target:
+        entity_id: input_text.irrigation_weather_longitude
+      data:
+        value: ''
+  - choose:
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_text.irrigation_weather_address''
+          }}'
+      sequence:
+      - action: homeassistant.update_entity
+        target:
+          entity_id: sensor.irrigation_address_lookup
+    - conditions:
+      - condition: template
+        value_template: '{{ trigger.entity_id == ''input_button.irrigation_apply_address_location''
+          }}'
+      - condition: template
+        value_template: "{{ is_number(state_attr('sensor.irrigation_address_lookup',
+          'lat'))\n   and is_number(state_attr('sensor.irrigation_address_lookup',
+          'lon')) }}"
+      sequence:
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.irrigation_weather_latitude
+        data:
+          value: '{{ state_attr(''sensor.irrigation_address_lookup'', ''lat'') | float
+            }}'
+      - action: input_text.set_value
+        target:
+          entity_id: input_text.irrigation_weather_longitude
+        data:
+          value: '{{ state_attr(''sensor.irrigation_address_lookup'', ''lon'') | float
+            }}'
+  - action: homeassistant.update_entity
+    target:
+      entity_id: sensor.irrigation_open_meteo_rain_intensity
+  mode: queued
+  max: 10
+  max_exceeded: silent
+- id: tv_gostinaya_dream_color_backlight
+  alias: Подсветка Dream Color — ТВ в гостиной
+  description: Keeps the Tuya backlight state synchronized with Android TV Remote.
+    Power changes are handled immediately; a lightweight watchdog repairs missed cloud
+    commands and synchronizes the light after automation reloads.
+  initial_state: true
+  triggers:
+  - trigger: state
+    entity_id: media_player.smart_tv_pro
+    to: 'on'
+    id: tv_on
+  - trigger: state
+    entity_id: media_player.smart_tv_pro
+    to: 'off'
+    id: tv_off
+  - trigger: state
+    entity_id: media_player.smart_tv_pro
+    to: unavailable
+    for:
+      seconds: 10
+    id: tv_unavailable
+  - trigger: homeassistant
+    event: start
+    id: ha_start
+  - trigger: time_pattern
+    seconds: /15
+    id: watchdog
+  actions:
+  - choose:
+    - conditions:
+      - condition: state
+        entity_id: media_player.smart_tv_pro
+        state: 'on'
+      - condition: template
+        value_template: '{{ trigger.id != ''watchdog'' or not is_state(''light.dream_color_rgb'',
+          ''on'') }}'
+      sequence:
+      - repeat:
+          sequence:
+          - action: light.turn_on
+            continue_on_error: true
+            target:
+              entity_id: light.dream_color_rgb
+          - delay:
+              seconds: 2
+          until:
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: light.dream_color_rgb
+              state: 'on'
+            - condition: template
+              value_template: '{{ not is_state(''media_player.smart_tv_pro'', ''on'')
+                }}'
+            - condition: template
+              value_template: '{{ repeat.index >= (1 if trigger.id == ''watchdog''
+                else 5) }}'
+    - conditions:
+      - condition: template
+        value_template: '{{ states(''media_player.smart_tv_pro'') in [''off'', ''unavailable'']
+          }}'
+      - condition: template
+        value_template: '{{ trigger.id != ''watchdog'' or not is_state(''light.dream_color_rgb'',
+          ''off'') }}'
+      sequence:
+      - repeat:
+          sequence:
+          - action: light.turn_off
+            continue_on_error: true
+            target:
+              entity_id: light.dream_color_rgb
+          - delay:
+              seconds: 2
+          until:
+          - condition: or
+            conditions:
+            - condition: state
+              entity_id: light.dream_color_rgb
+              state: 'off'
+            - condition: template
+              value_template: '{{ states(''media_player.smart_tv_pro'') not in [''off'',
+                ''unavailable''] }}'
+            - condition: template
+              value_template: '{{ repeat.index >= (1 if trigger.id == ''watchdog''
+                else 5) }}'
+  mode: restart
+  max_exceeded: silent
